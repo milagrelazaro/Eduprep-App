@@ -1,0 +1,29 @@
+
+# Garantir que o servidor reconhece os ficheiros de código como JavaScript
+<IfModule mod_mime.c>
+    AddType application/javascript .js
+    AddType application/javascript .ts
+    AddType application/javascript .tsx
+    AddType application/json .json
+</IfModule>
+
+# Configuração para que o React Router funcione (Single Page Application)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+    RewriteRule ^index\.html$ - [L]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule . /index.html [L]
+</IfModule>
+
+# Desativar cache durante o desenvolvimento para veres as mudanças na hora
+<FilesMatch "\.(tsx|ts|js|html)$">
+    FileETag None
+    <IfModule mod_headers.c>
+        Header unset ETag
+        Header set Cache-Control "max-age=0, no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "Wed, 11 Jan 1984 05:00:00 GMT"
+    </IfModule>
+</FilesMatch>

@@ -1,0 +1,8 @@
+{
+  "name": "EduPrep SaaS - Explicações & Exames",
+  "description": "Uma plataforma integrada para aulas particulares e preparação para exames de admissão com recomendações inteligentes por IA.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
