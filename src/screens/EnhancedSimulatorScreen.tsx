@@ -5,6 +5,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '../store/authStore';
+import { examService, examResultService } from '../services/firebaseService';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { db } from '../config/firebase';
+import { canAccessFullExam } from '../utils/premiumCheck';
 
 const INSTITUTIONS = ['UEM', 'UP', 'UCM', 'ISCTEM', 'Unilúrio', 'Universidade Zambeze'];
 const SUBJECTS = ['Matemática', 'Física', 'Química', 'Biologia', 'Português', 'História', 'Geografia', 'Inglês'];
@@ -25,6 +29,7 @@ export default function EnhancedSimulatorScreen() {
   const [availableExams, setAvailableExams] = useState<any[]>([]);
   const [currentExam, setCurrentExam] = useState<any>(null);
   const [examQuestions, setExamQuestions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   
   // Setup state
   const [selectedInstitution, setSelectedInstitution] = useState('');
@@ -37,11 +42,84 @@ export default function EnhancedSimulatorScreen() {
   }, []);
 
   const loadExams = async () => {
-    const saved = await AsyncStorage.getItem('eduprep_exams');
-    if (saved) {
-      const exams = JSON.parse(saved);
-      const approved = exams.filter((e: any) => e.status === 'approved');
-      setAvailableExams(approved);
+    try {
+      setLoading(true);
+      
+      // Filtrar disciplinas baseado na configuração acadêmica do usuário
+      const userSubjects = user?.competingDisciplines || [];
+      
+      // Buscar exames aprovados do Firestore
+      const examsQuery = query(
+        collection(db, 'exams'),
+        where('status', '==', 'approved')
+      );
+      const examsSnapshot = await getDocs(examsQuery);
+      
+      if (examsSnapshot.empty) {
+        console.log('Nenhum exame aprovado encontrado');
+        setAvailableExams([]);
+        setLoading(false);
+        return;
+      }
+      
+      const examsWithQuestions = await Promise.all(
+        examsSnapshot.docs.map(async (examDoc) => {
+          try {
+            const examData = { id: examDoc.id, ...examDoc.data() };
+            
+            // Buscar questões da subcoleção
+            const questionsSnapshot = await getDocs(
+              collection(db, 'exams', examDoc.id, 'questions')
+            );
+            
+            const questions = questionsSnapshot.docs.map(qDoc => ({
+              id: qDoc.id,
+              ...qDoc.data()
+            }));
+            
+            return { ...examData, questions };
+          } catch (err) {
+            console.error(`Erro ao carregar exame ${examDoc.id}:`, err);
+            return null;
+          }
+        })
+      );
+      
+      // Filtrar apenas exames com questões e válidos
+      let examsWithValidQuestions = examsWithQuestions.filter(
+        (exam: any) => exam && exam.questions && exam.questions.length > 0
+      );
+      
+      // Filtrar por disciplinas do usuário se configurado
+      if (userSubjects.length > 0) {
+        examsWithValidQuestions = examsWithValidQuestions.filter(
+          (exam: any) => userSubjects.includes(exam.subject)
+        );
+        console.log(`Exames filtrados por disciplinas do usuário: ${examsWithValidQuestions.length}`);
+      }
+      
+      console.log(`${examsWithValidQuestions.length} exames carregados com sucesso`);
+      setAvailableExams(examsWithValidQuestions);
+      
+      // Salvar no AsyncStorage para cache
+      await AsyncStorage.setItem('eduprep_exams', JSON.stringify(examsWithValidQuestions));
+    } catch (error) {
+      console.error('Error loading exams:', error);
+      
+      // Fallback para AsyncStorage se houver erro
+      try {
+        const saved = await AsyncStorage.getItem('eduprep_exams');
+        if (saved) {
+          const exams = JSON.parse(saved);
+          const approved = exams.filter((e: any) => e.status === 'approved');
+          setAvailableExams(approved);
+        }
+      } catch (cacheError) {
+        console.error('Error loading from cache:', cacheError);
+        setAvailableExams([]);
+      }
+    } finally {
+      setLoading(false);
     }
   };
   
@@ -106,6 +184,22 @@ export default function EnhancedSimulatorScreen() {
       return;
     }
 
+    // 🔒 LIMITAR A 10 PERGUNTAS NO SIMULADOR
+    const MAX_QUESTIONS_LIMIT = 10;
+    const totalQuestions = questions.length;
+    
+    if (totalQuestions > MAX_QUESTIONS_LIMIT) {
+      // Selecionar 10 questões aleatórias para o simulador
+      const shuffled = [...questions].sort(() => Math.random() - 0.5);
+      questions = shuffled.slice(0, MAX_QUESTIONS_LIMIT);
+      
+      Alert.alert(
+        '🎓 Simulador Limitado',
+        `Este exame tem ${totalQuestions} questões.\n\n✨ O simulador está configurado para mostrar no máximo ${MAX_QUESTIONS_LIMIT} questões por sessão.`,
+        [{ text: 'Continuar', style: 'default' }]
+      );
+    }
+
     setExamQuestions(questions);
     setMode('exam');
     setCurrentQuestionIndex(0);
@@ -145,8 +239,9 @@ export default function EnhancedSimulatorScreen() {
   const finishExam = async () => {
     setTimerActive(false);
     
-    const correctCount = examQuestions.filter(q => answers[q.id] === q.correctOption).length;
+    const correctCount = examQuestions.filter((q: any) => answers[q.id] === q.correctOption).length;
     const score = Math.round((correctCount / examQuestions.length) * 20);
+    const timeSpent = isTimed ? (examQuestions.length * 120 - timeLeft) : 0;
     
     const result = {
       id: Date.now().toString(),
@@ -157,15 +252,48 @@ export default function EnhancedSimulatorScreen() {
       totalQuestions: examQuestions.length,
       correctAnswers: correctCount,
       date: new Date().toISOString(),
-      duration: isTimed ? (examQuestions.length * 120 - timeLeft) : 0,
+      duration: timeSpent,
       analysis: score >= 14 ? 'Excelente desempenho!' : score >= 10 ? 'Bom desempenho, continue praticando.' : 'Precisa melhorar. Revise os conteúdos.',
-      answers: examQuestions.map(q => ({
+      answers: examQuestions.map((q: any) => ({
         questionId: q.id,
         selectedOption: answers[q.id] ?? -1,
         correct: answers[q.id] === q.correctOption,
       })),
     };
 
+    try {
+      console.log('=== INICIANDO SALVAMENTO NO FIRESTORE ===');
+      console.log('User ID:', user?.id || 'guest');
+      console.log('Exam ID:', currentExam?.id || 'exam-' + Date.now());
+      console.log('Score:', score);
+      
+      // Salvar no Firestore (sempre salvar, mesmo sem user ou examId)
+      const savedResult = await examResultService.saveExamResult({
+        userId: user?.id || 'guest',
+        examId: currentExam?.id || 'exam-' + Date.now(),
+        examName: `${selectedSubject} - ${selectedInstitution || 'Geral'}`,
+        subject: selectedSubject,
+        score,
+        totalQuestions: examQuestions.length,
+        correctAnswers: correctCount,
+        duration: timeSpent,
+        date: new Date().toISOString(),
+        analysis: score >= 14 ? 'Excelente!' : score >= 10 ? 'Bom!' : 'Precisa melhorar',
+        answers: examQuestions.map((q: any) => ({
+          questionId: q.id,
+          selectedOption: answers[q.id] ?? -1,
+          isCorrect: answers[q.id] === q.correctOption,
+        })),
+      });
+      
+      console.log('Resultado salvo com sucesso no Firestore:', savedResult);
+      console.log('=== FIM DO SALVAMENTO ===');
+    } catch (error) {
+      console.error('Error saving result to Firestore:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
+    }
+
+    // Salvar no AsyncStorage para cache
     const saved = await AsyncStorage.getItem('eduprep_exam_results');
     const results = saved ? JSON.parse(saved) : [];
     await AsyncStorage.setItem('eduprep_exam_results', JSON.stringify([result, ...results]));
@@ -200,9 +328,7 @@ export default function EnhancedSimulatorScreen() {
           <View style={styles.header}>
             <IconButton icon="arrow-left" onPress={() => navigation.goBack()} />
             <Text variant="headlineSmall" style={styles.title}>Simulador de Exames</Text>
-            <View style={{ width: 48 }} />
           </View>
-
           <Card style={styles.card}>
             <Card.Content>
               <Text variant="titleMedium" style={styles.sectionTitle}>🎓 Universidade</Text>
@@ -220,28 +346,54 @@ export default function EnhancedSimulatorScreen() {
               </View>
             </Card.Content>
           </Card>
-
           <Card style={styles.card}>
             <Card.Content>
               <Text variant="titleMedium" style={styles.sectionTitle}>📚 Disciplina</Text>
-              <View style={styles.chipContainer}>
-                {SUBJECTS.map(subj => (
-                  <Chip
-                    key={subj}
-                    selected={selectedSubject === subj}
-                    onPress={() => {
-                      setSelectedSubject(subj);
-                      setSelectedTopic('');
-                    }}
-                    style={styles.chip}
-                  >
-                    {subj}
-                  </Chip>
-                ))}
-              </View>
+              {user?.competingDisciplines && user.competingDisciplines.length > 0 ? (
+                <>
+                  <Text variant="bodySmall" style={{ color: '#6b7280', marginBottom: 12 }}>
+                    Baseado na sua configuração acadêmica
+                  </Text>
+                  <View style={styles.chipContainer}>
+                    {user.competingDisciplines.map((subj: string) => (
+                      <Chip
+                        key={subj}
+                        selected={selectedSubject === subj}
+                        onPress={() => {
+                          setSelectedSubject(subj);
+                          setSelectedTopic('');
+                        }}
+                        style={styles.chip}
+                      >
+                        {subj}
+                      </Chip>
+                    ))}
+                  </View>
+                </>
+              ) : (
+                <>
+                  <Text variant="bodySmall" style={{ color: '#f97316', marginBottom: 12 }}>
+                    ⚠️ Configure suas disciplinas no perfil para simulados personalizados
+                  </Text>
+                  <View style={styles.chipContainer}>
+                    {SUBJECTS.map(subj => (
+                      <Chip
+                        key={subj}
+                        selected={selectedSubject === subj}
+                        onPress={() => {
+                          setSelectedSubject(subj);
+                          setSelectedTopic('');
+                        }}
+                        style={styles.chip}
+                      >
+                        {subj}
+                      </Chip>
+                    ))}
+                  </View>
+                </>
+              )}
             </Card.Content>
           </Card>
-
           {selectedSubject && TOPICS[selectedSubject as keyof typeof TOPICS] && (
             <Card style={styles.card}>
               <Card.Content>
@@ -268,7 +420,6 @@ export default function EnhancedSimulatorScreen() {
               </Card.Content>
             </Card>
           )}
-
           <Card style={styles.card}>
             <Card.Content>
               <Text variant="titleMedium" style={styles.sectionTitle}>⏱️ Modo de Exame</Text>
@@ -290,7 +441,6 @@ export default function EnhancedSimulatorScreen() {
               </View>
             </Card.Content>
           </Card>
-
           <Button
             mode="contained"
             onPress={startExam}
@@ -320,8 +470,8 @@ export default function EnhancedSimulatorScreen() {
                 { text: 'Cancelar', style: 'cancel' },
                 { text: 'Sair', onPress: resetSimulator, style: 'destructive' },
               ]);
-            }} />
-            <View style={{ flex: 1 }}>
+            }}/>
+            <View style={{flex: 1}}>
               <Text style={styles.examTitle}>{selectedSubject}</Text>
               <Text style={styles.examSubtitle}>
                 Questão {currentQuestionIndex + 1} de {examQuestions.length}
@@ -329,30 +479,28 @@ export default function EnhancedSimulatorScreen() {
             </View>
             {isTimed && (
               <View style={styles.timer}>
-                <IconButton icon="clock-outline" iconColor="#f97316" size={16} style={{ margin: 0 }} />
+                <IconButton icon="clock-outline" iconColor="#f97316" size={16} style={{margin: 0}}/>
                 <Text style={styles.timerText}>
                   {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
                 </Text>
               </View>
             )}
           </View>
-          <ProgressBar progress={progress} color="#4f46e5" style={{ height: 4 }} />
+          <ProgressBar progress={progress} color="#4f46e5" style={{height: 4}}/>
         </View>
-
         <ScrollView contentContainerStyle={styles.examContent}>
           <Card style={styles.questionCard}>
             <Card.Content>
               <Text style={styles.questionText}>{currentQuestion.text}</Text>
               {currentQuestion.topic && (
-                <Chip style={styles.topicChip} textStyle={{ fontSize: 11 }}>
+                <Chip style={styles.topicChip} textStyle={{fontSize: 11}}>
                   {currentQuestion.topic}
                 </Chip>
               )}
             </Card.Content>
           </Card>
-
           <View style={styles.optionsContainer}>
-            {currentQuestion.options.map((option, index) => {
+            {currentQuestion.options.map((option: string, index: number) => {
               const isSelected = selectedAnswer === index;
               const isCorrectOption = index === currentQuestion.correctOption;
               const showResult = showFeedback;
@@ -390,13 +538,13 @@ export default function EnhancedSimulatorScreen() {
                           icon={icon}
                           iconColor={isCorrectOption ? '#10b981' : '#ef4444'}
                           size={20}
-                          style={{ margin: 0 }}
+                          style={{margin: 0}}
                         />
                       ) : (
                         <Text style={styles.optionLetter}>{String.fromCharCode(65 + index)}</Text>
                       )}
                     </View>
-                    <Text style={[styles.optionText, showResult && isCorrectOption && { fontWeight: '600' }]}>
+                    <Text style={[styles.optionText, showResult && isCorrectOption && {fontWeight: '600'}]}>
                       {option}
                     </Text>
                   </View>
@@ -404,11 +552,10 @@ export default function EnhancedSimulatorScreen() {
               );
             })}
           </View>
-
           {showFeedback && (
-            <Card style={[styles.feedbackCard, { backgroundColor: isCorrect ? '#ecfdf5' : '#fef2f2' }]}>
+            <Card style={[styles.feedbackCard, {backgroundColor: isCorrect ? '#ecfdf5' : '#fef2f2'}]}>
               <Card.Content>
-                <Text style={[styles.feedbackTitle, { color: isCorrect ? '#10b981' : '#ef4444' }]}>
+                <Text style={[styles.feedbackTitle, {color: isCorrect ? '#10b981' : '#ef4444'}]}>
                   {isCorrect ? currentQuestion.correctFeedback : currentQuestion.incorrectFeedback}
                 </Text>
                 <Text style={styles.explanation}>{currentQuestion.explanation}</Text>
@@ -417,14 +564,13 @@ export default function EnhancedSimulatorScreen() {
                   onPress={() => openYouTube(currentQuestion.learnMoreUrl || '')}
                   icon="youtube"
                   style={styles.youtubeButton}
-                  labelStyle={{ color: '#ef4444' }}
+                  labelStyle={{color: '#ef4444'}}
                 >
                   {isCorrect ? 'Saiba Mais no YouTube' : 'Ver Explicação no YouTube'}
                 </Button>
               </Card.Content>
             </Card>
           )}
-
           <View style={styles.actionButtons}>
             {!showFeedback ? (
               <Button
@@ -461,8 +607,8 @@ export default function EnhancedSimulatorScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.resultContent}>
         <View style={styles.resultHeader}>
-          <View style={[styles.scoreCircle, { backgroundColor: score >= 14 ? '#ecfdf5' : score >= 10 ? '#fef3c7' : '#fef2f2' }]}>
-            <Text style={[styles.scoreValue, { color: score >= 14 ? '#10b981' : score >= 10 ? '#f59e0b' : '#ef4444' }]}>
+          <View style={[styles.scoreCircle, {backgroundColor: score >= 14 ? '#ecfdf5' : score >= 10 ? '#fef3c7' : '#fef2f2'}]}>
+            <Text style={[styles.scoreValue, {color: score >= 14 ? '#10b981' : score >= 10 ? '#f59e0b' : '#ef4444'}]}>
               {score}
             </Text>
             <Text style={styles.scoreMax}>/20</Text>
@@ -474,7 +620,6 @@ export default function EnhancedSimulatorScreen() {
             Você acertou {correctCount} de {examQuestions.length} questões ({percentage.toFixed(0)}%)
           </Text>
         </View>
-
         <Card style={styles.card}>
           <Card.Content>
             <Text variant="titleMedium" style={styles.sectionTitle}>📊 Análise de Desempenho</Text>
@@ -484,7 +629,7 @@ export default function EnhancedSimulatorScreen() {
                 <Text style={styles.statLabel}>Acertos</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: '#ef4444' }]}>{examQuestions.length - correctCount}</Text>
+                <Text style={[styles.statValue, {color: '#ef4444'}]}>{examQuestions.length - correctCount}</Text>
                 <Text style={styles.statLabel}>Erros</Text>
               </View>
               <View style={styles.statItem}>
@@ -494,7 +639,6 @@ export default function EnhancedSimulatorScreen() {
             </View>
           </Card.Content>
         </Card>
-
         <Card style={styles.card}>
           <Card.Content>
             <Text variant="titleMedium" style={styles.sectionTitle}>💡 Recomendações</Text>
@@ -503,21 +647,10 @@ export default function EnhancedSimulatorScreen() {
                 ? 'Parabéns! Você está muito bem preparado. Continue praticando para manter o nível.'
                 : score >= 10
                 ? 'Bom desempenho! Revise os tópicos onde errou para melhorar ainda mais.'
-                : 'Você precisa estudar mais. Recomendamos buscar ajuda de um tutor especializado.'}
+                : 'Você precisa estudar mais. Revise os conteúdos e pratique mais simulados.'}
             </Text>
-            {score < 14 && (
-              <Button
-                mode="contained"
-                onPress={() => navigation.navigate('Marketplace' as never)}
-                icon="account-group"
-                style={{ marginTop: 12, backgroundColor: '#4f46e5' }}
-              >
-                Encontrar Tutor Especializado
-              </Button>
-            )}
           </Card.Content>
         </Card>
-
         <View style={styles.resultActions}>
           <Button
             mode="outlined"

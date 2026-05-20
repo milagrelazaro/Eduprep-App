@@ -1,20 +1,17 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { Text, TextInput, Button, IconButton, Chip } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useAuthStore } from '../store/authStore';
 import { UserRole } from '../types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Login'>;
-type Route = RouteProp<RootStackParamList, 'Login'>;
 
 export default function LoginScreen() {
   const navigation = useNavigation<Nav>();
-  const route = useRoute<Route>();
-  const { login } = useAuthStore();
-  const initialRole = route.params?.role || UserRole.STUDENT;
+  const { login, register } = useAuthStore();
 
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -33,16 +30,51 @@ export default function LoginScreen() {
     );
   };
 
-  const isAdmin = initialRole === UserRole.ADMIN;
-
   const handleAuth = async () => {
+    if (!email || !password) {
+      Alert.alert('Erro', 'Por favor, preencha email e senha.');
+      return;
+    }
+
+    if (!isLogin && !name) {
+      Alert.alert('Erro', 'Por favor, preencha seu nome.');
+      return;
+    }
+
     setLoading(true);
     try {
-      await login(email, name, initialRole);
-    } catch (e) {
-      console.error(e);
+      if (isLogin) {
+        // Modo LOGIN - apenas autentica
+        await login(email, password);
+      } else {
+        // Modo REGISTRO - cria novo usuário (sempre como STUDENT)
+        await register(email, password, name, UserRole.STUDENT, selectedCourse, selectedSubjects);
+      }
+    } catch (e: any) {
+      console.error(isLogin ? 'Login error:' : 'Register error:', e);
+      
+      let errorMessage = isLogin ? 'Erro ao fazer login.' : 'Erro ao criar conta.';
+      
+      if (e?.code === 'auth/invalid-email') {
+        errorMessage = 'Email inválido.';
+      } else if (e?.code === 'auth/user-not-found') {
+        errorMessage = 'Usuário não encontrado. Crie uma conta primeiro.';
+      } else if (e?.code === 'auth/wrong-password') {
+        errorMessage = 'Senha incorreta.';
+      } else if (e?.code === 'auth/email-already-in-use') {
+        errorMessage = 'Este email já está em uso. Faça login.';
+      } else if (e?.code === 'auth/weak-password') {
+        errorMessage = 'A senha deve ter pelo menos 6 caracteres.';
+      } else if (e?.code === 'auth/network-request-failed') {
+        errorMessage = 'Erro de conexão. Verifique sua internet.';
+      } else if (e?.message) {
+        errorMessage = e.message;
+      }
+      
+      Alert.alert('Erro', errorMessage);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -52,14 +84,14 @@ export default function LoginScreen() {
     >
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <View style={[styles.iconBox, { backgroundColor: isAdmin ? '#1f2937' : '#4f46e5' }]}>
+          <View style={styles.iconBox}>
             <IconButton icon="shield-check" iconColor="#fff" size={32} />
           </View>
           <Text variant="headlineMedium" style={styles.title}>
             {isLogin ? 'Bem-vindo de volta' : 'Crie a sua conta'}
           </Text>
-          <Text variant="labelMedium" style={styles.roleLabel}>
-            ACESSO: {initialRole.toUpperCase()}
+          <Text variant="labelMedium" style={styles.subtitle}>
+            {isLogin ? 'Faça login para continuar' : 'Cadastre-se como estudante'}
           </Text>
         </View>
 
@@ -111,13 +143,13 @@ export default function LoginScreen() {
           )}
 
           <TextInput
-            label="Email ou Telefone"
+            label="Email"
             value={email}
             onChangeText={setEmail}
             mode="outlined"
             style={styles.input}
             outlineStyle={styles.inputOutline}
-            placeholder={isAdmin ? 'admin@eduprep.com' : 'exemplo@gmail.com'}
+            placeholder="exemplo@gmail.com"
             keyboardType="email-address"
             autoCapitalize="none"
             left={<TextInput.Icon icon="email" />}
@@ -139,7 +171,7 @@ export default function LoginScreen() {
             mode="contained"
             onPress={handleAuth}
             loading={loading}
-            style={[styles.submitBtn, { backgroundColor: isAdmin ? '#1f2937' : '#4f46e5' }]}
+            style={styles.submitBtn}
             labelStyle={styles.submitLabel}
             contentStyle={{ paddingVertical: 8 }}
           >
@@ -187,17 +219,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
+    backgroundColor: '#4f46e5',
   },
   title: {
     fontWeight: '800',
     color: '#111827',
     textAlign: 'center',
   },
-  roleLabel: {
+  subtitle: {
     color: '#6b7280',
-    letterSpacing: 3,
     marginTop: 8,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   formCard: {
     backgroundColor: '#fff',
@@ -221,6 +253,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginTop: 8,
     elevation: 4,
+    backgroundColor: '#4f46e5',
   },
   submitLabel: {
     color: '#fff',

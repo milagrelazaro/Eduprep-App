@@ -1,15 +1,16 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User, UserRole } from '../types';
+import { authService, userService } from '../services/firebaseService';
 
 interface AuthState {
   user: User | null;
   isLoading: boolean;
   setUser: (user: User | null) => void;
-  login: (email: string, name: string, role: UserRole) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, name: string, role: UserRole, intendedCourse?: string, competingDisciplines?: string[]) => Promise<void>;
   logout: () => Promise<void>;
   loadUser: () => Promise<void>;
-  switchRole: (newRole: UserRole) => Promise<void>;
   updateUser: (updates: Partial<User>) => Promise<void>;
 }
 
@@ -25,106 +26,118 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   setUser: (user) => set({ user }),
 
-  login: async (email: string, name: string, role: UserRole) => {
-    let finalRole = role;
-    if (email.toLowerCase() === 'admin@eduprep.com') {
-      finalRole = UserRole.ADMIN;
+  login: async (email: string, password: string) => {
+    set({ isLoading: true });
+
+    try {
+      const normalizedEmail = email.trim().toLowerCase();
+      
+      // Login apenas - não cria novo usuário
+      const userData = await authService.signIn(normalizedEmail, password);
+
+      // Persist locally for offline use
+      await AsyncStorage.setItem('eduprep_user', JSON.stringify(userData));
+
+      set({ user: userData, isLoading: false });
+    } catch (error) {
+      console.error('Login error:', error);
+      set({ isLoading: false });
+      throw error;
     }
+  },
 
-    const newUser: User = {
-      id: 'user-' + Math.random().toString(36).substr(2, 9),
-      name: name || (email ? email.split('@')[0] : (finalRole === UserRole.ADMIN ? 'Administrador' : 'Utilizador')),
-      email: email || (finalRole === UserRole.ADMIN ? 'admin@eduprep.com' : 'teste@eduprep.com'),
-      role: finalRole,
-      status: 'active',
-      avatar: finalRole === UserRole.ADMIN
-        ? 'https://ui-avatars.com/api/?name=Admin&background=1f2937&color=fff'
-        : `https://ui-avatars.com/api/?name=${encodeURIComponent(name || email)}&background=4f46e5&color=fff`,
-    };
+  register: async (
+    email: string,
+    password: string,
+    name: string,
+    role: UserRole,
+    intendedCourse?: string,
+    competingDisciplines?: string[]
+  ) => {
+    set({ isLoading: true });
 
-    // Manage tutors persistence
-    const savedTutors = await AsyncStorage.getItem('eduprep_all_tutors');
-    let allTutors = savedTutors ? JSON.parse(savedTutors) : INITIAL_TUTORS;
-
-    if (finalRole === UserRole.TUTOR) {
-      const existing = allTutors.find((t: any) => t.email.toLowerCase() === newUser.email.toLowerCase());
-      if (!existing) {
-        allTutors.push({
-          id: newUser.id,
-          name: newUser.name,
-          subject: 'Nova Especialidade',
-          status: 'pending',
-          email: newUser.email,
-          avatar: newUser.avatar,
-          price: 450,
-          rating: '0.0',
-          reviews: 0,
-        });
+    try {
+      const normalizedEmail = email.trim().toLowerCase();
+      let finalRole = role;
+      
+      // Admin override
+      if (normalizedEmail === 'admin@eduprep.co.mz' || normalizedEmail === 'admin@eduprep.com') {
+        finalRole = UserRole.ADMIN;
       }
-    }
 
-    await AsyncStorage.setItem('eduprep_all_tutors', JSON.stringify(allTutors));
-    await AsyncStorage.setItem('eduprep_user', JSON.stringify(newUser));
-    set({ user: newUser });
+      const displayName = name?.trim() || normalizedEmail.split('@')[0];
+
+      // Criar novo usuário
+      const userData = await authService.signUp(normalizedEmail, password, displayName, finalRole, {
+        intendedCourse,
+        competingDisciplines,
+      });
+
+      // Persist locally for offline use
+      await AsyncStorage.setItem('eduprep_user', JSON.stringify(userData));
+
+      set({ user: userData, isLoading: false });
+    } catch (error) {
+      console.error('Register error:', error);
+      set({ isLoading: false });
+      throw error;
+    }
   },
 
   logout: async () => {
+    console.log('logout function chamada');
+    try {
+      console.log('Chamando authService.signOut()');
+      await authService.signOut();
+      console.log('authService.signOut() concluído');
+    } catch (error) {
+      console.error('Error signing out from Firebase:', error);
+    }
+    console.log('Removendo item do AsyncStorage');
     await AsyncStorage.removeItem('eduprep_user');
+    console.log('Definindo user como null');
     set({ user: null });
+    console.log('Logout concluído');
   },
 
   loadUser: async () => {
+    set({ isLoading: true });
     try {
       const saved = await AsyncStorage.getItem('eduprep_user');
       if (saved) {
-        set({ user: JSON.parse(saved), isLoading: false });
-      } else {
-        set({ isLoading: false });
+        const localUser: User = JSON.parse(saved);
+        set({ user: localUser });
+
+        try {
+          const refreshed = await userService.getUserById(localUser.id);
+          if (refreshed) {
+            set({ user: refreshed });
+            await AsyncStorage.setItem('eduprep_user', JSON.stringify(refreshed));
+          }
+        } catch (error) {
+          console.error('Error refreshing user from Firestore:', error);
+          // If refresh fails, keep local user
+        }
       }
-    } catch {
+    } catch (error) {
+      console.error('Error loading user from AsyncStorage:', error);
+    } finally {
       set({ isLoading: false });
     }
   },
 
-  switchRole: async (newRole: UserRole) => {
-    const currentUser = await AsyncStorage.getItem('eduprep_user');
-    if (!currentUser) return;
-
-    const user: User = JSON.parse(currentUser);
-    const updatedUser = { ...user, role: newRole };
-
-    // If switching to tutor, add to tutors list
-    if (newRole === UserRole.TUTOR) {
-      const savedTutors = await AsyncStorage.getItem('eduprep_all_tutors');
-      let allTutors = savedTutors ? JSON.parse(savedTutors) : INITIAL_TUTORS;
-      const existing = allTutors.find((t: any) => t.email.toLowerCase() === user.email.toLowerCase());
-      
-      if (!existing) {
-        allTutors.push({
-          id: user.id,
-          name: user.name,
-          subject: 'Nova Especialidade',
-          status: 'pending',
-          email: user.email,
-          avatar: user.avatar,
-          price: 450,
-          rating: '0.0',
-          reviews: 0,
-        });
-        await AsyncStorage.setItem('eduprep_all_tutors', JSON.stringify(allTutors));
-      }
-    }
-
-    await AsyncStorage.setItem('eduprep_user', JSON.stringify(updatedUser));
-    set({ user: updatedUser });
-  },
-
   updateUser: async (updates: Partial<User>) => {
-    const currentUser = await AsyncStorage.getItem('eduprep_user');
-    if (!currentUser) return;
+    const currentUserJson = await AsyncStorage.getItem('eduprep_user');
+    if (!currentUserJson) return;
 
-    const user: User = JSON.parse(currentUser);
+    const user: User = JSON.parse(currentUserJson);
     const updatedUser = { ...user, ...updates };
+
+    try {
+      await userService.updateUser(user.id, updates);
+    } catch {
+      // ignore
+    }
 
     await AsyncStorage.setItem('eduprep_user', JSON.stringify(updatedUser));
     set({ user: updatedUser });

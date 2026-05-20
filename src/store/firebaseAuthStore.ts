@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { User, UserRole } from '../types';
-import { authService } from '../services/firebaseService';
+import { authService, userService } from '../services/firebaseService';
 
 interface AuthState {
   user: User | null;
@@ -64,7 +64,7 @@ export const useFirebaseAuthStore = create<AuthState>()(
           
           if (persisted) {
             // Refresh user data from Firestore
-            const refreshedUser = await authService.userService?.getUserById(persisted.id);
+            const refreshedUser = await userService.getUserById(persisted.id);
             if (refreshedUser) {
               set({ user: refreshedUser });
             }
@@ -84,7 +84,7 @@ export const useFirebaseAuthStore = create<AuthState>()(
         try {
           set({ isLoading: true });
           
-          await authService.userService?.updateUser(user.id, { role: newRole });
+          await userService.updateUser(user.id, { role: newRole });
           
           set({ 
             user: { ...user, role: newRole }, 
@@ -101,7 +101,7 @@ export const useFirebaseAuthStore = create<AuthState>()(
         if (!user) return;
 
         try {
-          await authService.userService?.updateUser(user.id, updates);
+          await userService.updateUser(user.id, updates);
           
           set({ 
             user: { ...user, ...updates } 

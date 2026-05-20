@@ -16,9 +16,26 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  phone?: string;
   role: UserRole;
   avatar?: string;
   status: 'active' | 'pending' | 'suspended';
+  firebaseUid?: string;
+  // Profile data
+  intendedCourse?: string;
+  targetUniversity?: string;
+  competingDisciplines?: string[];
+  focus?: 'exams' | 'tutoring' | 'both';
+  
+  // Tutor-specific fields
+  subject?: string;
+  price?: number;
+  rating?: string;
+  reviews?: number;
+  
+  // Timestamps
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface TutorProfile {
@@ -44,6 +61,18 @@ export interface Lesson {
   subject: string;
 }
 
+export interface Payment {
+  id: string;
+  lessonId?: string;
+  userId: string;
+  tutorId: string;
+  amount: number;
+  status: 'pending' | 'escrow' | 'completed' | 'cancelled';
+  escrowReleaseDate?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
 export interface Exam {
   id: string;
   institution: string;
@@ -61,9 +90,13 @@ export interface Question {
 
 export interface ExamResult {
   id: string;
-  examId: string;
+  examId?: string;
   studentId: string;
   score: number;
-  date: string;
+  date: string | Date;
   analysis: string;
+  examName?: string;
+  subject?: string;
+  totalQuestions?: number;
+  correctAnswers?: number;
 }

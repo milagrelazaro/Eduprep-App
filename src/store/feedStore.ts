@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { FeedPost, FeedComment } from '../types';
+import { FeedPost, FeedComment, UserRole } from '../types';
+import { postService } from '../services/firebaseService';
 
 interface FeedState {
   posts: FeedPost[];
@@ -14,76 +15,32 @@ interface FeedState {
   deletePost: (postId: string) => Promise<void>;
 }
 
-const INITIAL_POSTS: FeedPost[] = [
-  {
-    id: 'post-1',
-    userId: 'user-demo',
-    userName: 'Maria Santos',
-    userAvatar: 'https://ui-avatars.com/api/?name=Maria+Santos&background=4f46e5&color=fff',
-    userRole: 'student' as any,
-    content: 'Acabei de passar no exame de admissão da UEM com 16 valores! 🎉 Obrigada a todos os explicadores que me ajudaram nesta jornada!',
-    image: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=800',
-    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    likes: ['user-1', 'user-2', 'user-3'],
-    comments: [
-      {
-        id: 'comment-1',
-        postId: 'post-1',
-        userId: 'user-2',
-        userName: 'João Macamo',
-        userAvatar: 'https://ui-avatars.com/api/?name=João+Macamo&background=10b981&color=fff',
-        content: 'Parabéns! Bem merecido! 👏',
-        createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-        likes: ['user-1'],
-      },
-    ],
-    shares: ['user-4'],
-    type: 'achievement',
-    achievementData: {
-      examName: 'Exame de Admissão UEM',
-      score: 16,
-      institution: 'Universidade Eduardo Mondlane',
-    },
-  },
-  {
-    id: 'post-2',
-    userId: 'tutor-1',
-    userName: 'Prof. Pedro Sambo',
-    userAvatar: 'https://ui-avatars.com/api/?name=Pedro+Sambo&background=f59e0b&color=fff',
-    userRole: 'tutor' as any,
-    content: 'Dicas para o exame de Matemática: Pratiquem derivadas e integrais todos os dias! A consistência é a chave para o sucesso. 📚',
-    createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-    likes: ['user-1', 'user-5'],
-    comments: [],
-    shares: [],
-    type: 'news',
-  },
-  {
-    id: 'post-3',
-    userId: 'admin-1',
-    userName: 'EduPrep Admin',
-    userAvatar: 'https://ui-avatars.com/api/?name=EduPrep&background=1f2937&color=fff',
-    userRole: 'admin' as any,
-    content: 'Novos exames de simulação disponíveis! Teste seus conhecimentos em Física, Química e Biologia. Boa sorte a todos! 🚀',
-    image: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=800',
-    createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    likes: ['user-1', 'user-2', 'user-3', 'user-4', 'user-5'],
-    comments: [
-      {
-        id: 'comment-2',
-        postId: 'post-3',
-        userId: 'user-3',
-        userName: 'Ana Silva',
-        userAvatar: 'https://ui-avatars.com/api/?name=Ana+Silva&background=ec4899&color=fff',
-        content: 'Excelente iniciativa!',
-        createdAt: new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString(),
-        likes: [],
-      },
-    ],
-    shares: ['user-2', 'user-3'],
-    type: 'announcement',
-  },
-];
+const FEED_STORAGE_KEY = 'eduprep_feed_posts';
+
+const mapFirebasePostToFeed = (post: any): FeedPost => {
+  const createdAtValue = post.createdAt;
+  const createdAt = createdAtValue instanceof Date
+    ? createdAtValue.toISOString()
+    : typeof createdAtValue === 'string'
+    ? createdAtValue
+    : new Date().toISOString();
+
+  return {
+    id: post.id,
+    userId: post.authorId || post.userId || 'eduprep',
+    userName: post.authorName || post.userName || 'Membro EduPrep',
+    userAvatar: post.authorAvatar || post.userAvatar || undefined,
+    userRole: post.userRole || UserRole.STUDENT,
+    content: post.content || '',
+    image: post.image,
+    createdAt,
+    likes: Array.isArray(post.likes) ? post.likes : [],
+    comments: Array.isArray(post.comments) ? post.comments : [],
+    shares: Array.isArray(post.shares) ? post.shares : [],
+    type: post.type || 'news',
+    achievementData: post.achievementData,
+  };
+};
 
 export const useFeedStore = create<FeedState>((set, get) => ({
   posts: [],
@@ -92,19 +49,19 @@ export const useFeedStore = create<FeedState>((set, get) => ({
   loadPosts: async () => {
     set({ isLoading: true });
     try {
-      const saved = await AsyncStorage.getItem('eduprep_feed_posts');
-      if (saved) {
-        const posts = JSON.parse(saved);
-        set({ posts: posts.sort((a: FeedPost, b: FeedPost) => 
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        ), isLoading: false });
-      } else {
-        await AsyncStorage.setItem('eduprep_feed_posts', JSON.stringify(INITIAL_POSTS));
-        set({ posts: INITIAL_POSTS, isLoading: false });
-      }
+      const remotePosts = await postService.getAllPosts();
+      const mapped = remotePosts.map(mapFirebasePostToFeed);
+      const sorted = mapped.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      set({ posts: sorted, isLoading: false });
+      await AsyncStorage.setItem(FEED_STORAGE_KEY, JSON.stringify(sorted));
     } catch (error) {
       console.error('Error loading posts:', error);
-      set({ posts: INITIAL_POSTS, isLoading: false });
+      const saved = await AsyncStorage.getItem(FEED_STORAGE_KEY);
+      if (saved) {
+        set({ posts: JSON.parse(saved), isLoading: false });
+      } else {
+        set({ posts: [], isLoading: false });
+      }
     }
   },
 
@@ -117,10 +74,24 @@ export const useFeedStore = create<FeedState>((set, get) => ({
       comments: [],
       shares: [],
     };
-
-    const updatedPosts = [newPost, ...get().posts];
-    set({ posts: updatedPosts });
-    await AsyncStorage.setItem('eduprep_feed_posts', JSON.stringify(updatedPosts));
+    try {
+      await postService.createPost({
+        authorId: postData.userId,
+        authorName: postData.userName,
+        authorAvatar: postData.userAvatar,
+        userRole: postData.userRole,
+        content: postData.content,
+        image: postData.image,
+        type: postData.type,
+        achievementData: postData.achievementData,
+      });
+      await get().loadPosts();
+    } catch (error) {
+      console.error('Error creating post:', error);
+      const updatedPosts = [newPost, ...get().posts];
+      set({ posts: updatedPosts });
+      await AsyncStorage.setItem(FEED_STORAGE_KEY, JSON.stringify(updatedPosts));
+    }
   },
 
   toggleLike: async (postId, userId) => {
@@ -135,7 +106,7 @@ export const useFeedStore = create<FeedState>((set, get) => ({
     });
 
     set({ posts });
-    await AsyncStorage.setItem('eduprep_feed_posts', JSON.stringify(posts));
+    await AsyncStorage.setItem(FEED_STORAGE_KEY, JSON.stringify(posts));
   },
 
   addComment: async (postId, commentData) => {
@@ -154,7 +125,7 @@ export const useFeedStore = create<FeedState>((set, get) => ({
     });
 
     set({ posts });
-    await AsyncStorage.setItem('eduprep_feed_posts', JSON.stringify(posts));
+    await AsyncStorage.setItem(FEED_STORAGE_KEY, JSON.stringify(posts));
   },
 
   toggleCommentLike: async (postId, commentId, userId) => {
@@ -175,7 +146,7 @@ export const useFeedStore = create<FeedState>((set, get) => ({
     });
 
     set({ posts });
-    await AsyncStorage.setItem('eduprep_feed_posts', JSON.stringify(posts));
+    await AsyncStorage.setItem(FEED_STORAGE_KEY, JSON.stringify(posts));
   },
 
   sharePost: async (postId, userId) => {
@@ -190,12 +161,12 @@ export const useFeedStore = create<FeedState>((set, get) => ({
     });
 
     set({ posts });
-    await AsyncStorage.setItem('eduprep_feed_posts', JSON.stringify(posts));
+    await AsyncStorage.setItem(FEED_STORAGE_KEY, JSON.stringify(posts));
   },
 
   deletePost: async (postId) => {
     const posts = get().posts.filter(post => post.id !== postId);
     set({ posts });
-    await AsyncStorage.setItem('eduprep_feed_posts', JSON.stringify(posts));
+    await AsyncStorage.setItem(FEED_STORAGE_KEY, JSON.stringify(posts));
   },
 }));

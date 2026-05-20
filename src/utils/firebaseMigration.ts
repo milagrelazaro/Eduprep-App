@@ -1,6 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { collection, addDoc } from 'firebase/firestore';
+import { db } from '../config/firebase';
 import { userService, examService, postService, examResultService } from '../services/firebaseService';
 import { MOCK_TUTORS, MOCK_EXAMS, MOCK_LESSONS } from '../data/mockData';
+import { UserRole } from '../types';
+
+const LESSONS_COLLECTION = 'lessons';
 
 export const migrateFromAsyncStorage = async () => {
   console.log('🔄 Starting migration from AsyncStorage to Firestore...');
@@ -28,17 +33,9 @@ export const migrateFromAsyncStorage = async () => {
         await userService.createUser({
           name: tutor.name,
           email: tutor.email,
-          role: 'tutor',
+          role: UserRole.STUDENT,
           avatar: tutor.avatar,
           status: 'active',
-          bio: tutor.bio,
-          subjects: [tutor.subject],
-          level: tutor.level,
-          verified: tutor.verified,
-          rating: parseFloat(tutor.rating),
-          pricePerHour: tutor.price,
-          availability: [],
-          examExpert: tutor.examExpert,
         });
       } catch (error) {
         console.log(`⚠️ Tutor ${tutor.email} might already exist, skipping...`);

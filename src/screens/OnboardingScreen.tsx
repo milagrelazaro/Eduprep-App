@@ -4,7 +4,6 @@ import { Text, Button, Card, IconButton } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { UserRole } from '../types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Onboarding'>;
 
@@ -21,13 +20,13 @@ export default function OnboardingScreen() {
 
       <Text variant="headlineLarge" style={styles.title}>EduPrep SaaS</Text>
       <Text variant="bodyLarge" style={styles.subtitle}>
-        Aprenda, prepare-se e passe nos exames de admissão com os melhores tutores.
+        Simulador de Exames de Admissão
       </Text>
 
       <View style={styles.optionsContainer}>
         <Card
           style={styles.optionCard}
-          onPress={() => navigation.navigate('Login', { role: UserRole.STUDENT })}
+          onPress={() => navigation.navigate('Login')}
         >
           <Card.Content style={styles.optionContent}>
             <View style={[styles.iconBox, { backgroundColor: '#eef2ff' }]}>
@@ -35,37 +34,7 @@ export default function OnboardingScreen() {
             </View>
             <View style={styles.optionText}>
               <Text variant="titleMedium" style={styles.optionTitle}>Sou Estudante</Text>
-              <Text variant="bodySmall" style={styles.optionDesc}>Quero aprender e passar nos exames.</Text>
-            </View>
-          </Card.Content>
-        </Card>
-
-        <Card
-          style={styles.optionCard}
-          onPress={() => navigation.navigate('Login', { role: UserRole.TUTOR })}
-        >
-          <Card.Content style={styles.optionContent}>
-            <View style={[styles.iconBox, { backgroundColor: '#ecfdf5' }]}>
-              <IconButton icon="account-group" iconColor="#10b981" size={24} />
-            </View>
-            <View style={styles.optionText}>
-              <Text variant="titleMedium" style={styles.optionTitle}>Sou Tutor</Text>
-              <Text variant="bodySmall" style={styles.optionDesc}>Quero dar explicações e ajudar alunos.</Text>
-            </View>
-          </Card.Content>
-        </Card>
-
-        <Card
-          style={[styles.optionCard, { backgroundColor: '#f9fafb', marginTop: 16 }]}
-          onPress={() => navigation.navigate('Login', { role: UserRole.ADMIN })}
-        >
-          <Card.Content style={styles.optionContent}>
-            <View style={[styles.iconBox, { backgroundColor: '#e5e7eb' }]}>
-              <IconButton icon="shield-alert" iconColor="#6b7280" size={20} />
-            </View>
-            <View style={styles.optionText}>
-              <Text variant="titleSmall" style={{ fontWeight: '700', color: '#374151' }}>Administração</Text>
-              <Text variant="labelSmall" style={{ color: '#9ca3af', letterSpacing: 2 }}>ACESSO RESTRITO</Text>
+              <Text variant="bodySmall" style={styles.optionDesc}>Quero praticar simulados de exames.</Text>
             </View>
           </Card.Content>
         </Card>
@@ -76,7 +45,7 @@ export default function OnboardingScreen() {
         <Button
           mode="text"
           compact
-          onPress={() => navigation.navigate('Login', {})}
+          onPress={() => navigation.navigate('Login')}
           labelStyle={{ color: '#4f46e5', fontWeight: '700' }}
         >
           Fazer Login

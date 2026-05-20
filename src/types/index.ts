@@ -1,6 +1,5 @@
 export enum UserRole {
   STUDENT = 'student',
-  TUTOR = 'tutor',
   ADMIN = 'admin',
 }
 
@@ -23,14 +22,30 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  phone?: string;
   role: UserRole;
   avatar?: string;
   status: 'active' | 'pending' | 'suspended';
+  firebaseUid?: string;
+  // Profile data
   intendedCourse?: string;
-  targetUniversity?: string;
   competingDisciplines?: string[];
-  academicGoals?: string;
+  focus?: 'exams' | 'tutoring' | 'both';
+  
+  // Tutor-specific fields
+  subject?: string;
+  price?: number;
+  rating?: string;
+  reviews?: number;
+  
+  // Premium/Subscription fields
+  isPremium?: boolean;
+  premiumExpiresAt?: Date;
+  subscriptionType?: 'monthly' | 'yearly' | 'lifetime';
+  subscriptionId?: string;
+  
+  // Timestamps
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface TutorProfile {
@@ -82,6 +97,7 @@ export interface Exam {
   uploadedBy?: string;
   status?: 'pending' | 'approved' | 'rejected';
   aiGenerated?: boolean;
+  pdfUrl?: string; // Referência ao arquivo PDF do exame
 }
 
 export interface Question {
@@ -98,19 +114,15 @@ export interface Question {
 
 export interface ExamResult {
   id: string;
-  examId: string;
-  examName: string;
+  examId?: string;
   studentId: string;
   score: number;
-  totalQuestions: number;
-  correctAnswers: number;
-  date: string;
-  duration: number;
+  date: string | Date;
   analysis: string;
-  subjectBreakdown?: { [subject: string]: { correct: number; total: number } };
-  weakTopics?: string[];
-  recommendedTutors?: string[];
-  answers?: { questionId: string; selectedOption: number; correct: boolean }[];
+  examName?: string;
+  subject?: string;
+  totalQuestions?: number;
+  correctAnswers?: number;
 }
 
 export interface FeedPost {
@@ -142,4 +154,88 @@ export interface FeedComment {
   content: string;
   createdAt: string;
   likes: string[];
+}
+
+export interface Chat {
+  id: string;
+  participantId: string;
+  participantName: string;
+  participantAvatar?: string;
+  lastMessage: string;
+  lastMessageTime: string;
+  unreadCount: number;
+  online?: boolean;
+}
+
+export interface ChatMessage {
+  id: string;
+  chatId: string;
+  text: string;
+  senderId: string;
+  senderName: string;
+  time: string;
+  read: boolean;
+}
+
+export type ExamUploadSource = 'pdf' | 'upload';
+
+export interface ExamCatalogItem {
+  id: string;
+  title: string;
+  subject: string;
+  institution: string;
+  year: number;
+  fileName: string;
+  pdfUrl?: string;
+  size?: string;
+  description?: string;
+  duration?: number;
+  status: 'approved' | 'pending_validation' | 'rejected';
+  uploadSource: ExamUploadSource;
+  aiProcessed?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SubscriptionPlan = 'monthly' | 'yearly' | 'lifetime';
+export type PaymentMethod = 'mpesa' | 'emola' | 'card';
+
+export interface Subscription {
+  id: string;
+  userId: string;
+  plan: SubscriptionPlan;
+  status: 'active' | 'expired' | 'cancelled' | 'pending';
+  startDate: Date;
+  expiresAt?: Date;
+  price: number;
+  paymentMethod: PaymentMethod;
+  transactionId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Payment {
+  id: string;
+  userId: string;
+  type: 'subscription' | 'lesson';
+  subscriptionId?: string;
+  lessonId?: string;
+  amount: number;
+  method: PaymentMethod;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  transactionId?: string;
+  phoneNumber?: string;
+  reference?: string;
+  createdAt: Date;
+  completedAt?: Date;
+}
+
+export interface PricingPlan {
+  id: SubscriptionPlan;
+  name: string;
+  price: number;
+  duration: string;
+  features: string[];
+  popular?: boolean;
+  savings?: string;
 }

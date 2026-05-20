@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Image, TouchableOpacity } from 'react-native';
-import { Text, Card, IconButton, Searchbar, Button } from 'react-native-paper';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { View, StyleSheet, ScrollView, Image, TouchableOpacity, Alert } from 'react-native';
+import { Text, Card, IconButton, Searchbar, Button, Portal, Modal, TextInput } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { userService, authService } from '../services/firebaseService';
+import { UserRole } from '../types';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { db } from '../config/firebase';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import { auth } from '../config/firebase';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
-const INITIAL_TUTORS = [
-  { id: '1', name: 'Pedro Sambo', subject: 'Matemática', status: 'pending', email: 'pedro@gmail.com', avatar: '' },
-  { id: '2', name: 'Ana Vilanculos', subject: 'Português', status: 'pending', email: 'ana@gmail.com', avatar: '' },
-  { id: '3', name: 'Mário Langa', subject: 'Física', status: 'active', email: 'mario@gmail.com', avatar: '' },
-];
 
 function StatCard({ title, value, trend, icon, color }: any) {
   const colorMap: any = {
@@ -27,7 +27,7 @@ function StatCard({ title, value, trend, icon, color }: any) {
     <Card style={styles.statCard}>
       <Card.Content>
         <View style={[styles.statIcon, { backgroundColor: c.bg }]}>
-          <IconButton icon={icon} iconColor={c.text} size={22} style={{ margin: 0 }} />
+          <IconButton icon={icon} iconColor={c.text} size={22} style={styles.iconButton} />
         </View>
         <Text style={styles.statLabel}>{title}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 4 }}>
@@ -57,31 +57,125 @@ function StatusBadge({ status }: { status: string }) {
 
 export default function AdminPanelScreen() {
   const navigation = useNavigation<Nav>();
-  const [tutors, setTutors] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [examResults, setExamResults] = useState<any[]>([]);
   const [filter, setFilter] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
 
   const loadData = async () => {
-    const saved = await AsyncStorage.getItem('eduprep_all_tutors');
-    if (saved) {
-      setTutors(JSON.parse(saved));
-    } else {
-      await AsyncStorage.setItem('eduprep_all_tutors', JSON.stringify(INITIAL_TUTORS));
-      setTutors(INITIAL_TUTORS);
+    try {
+      setLoading(true);
+      // Carregar todos os usuários
+      const students = await userService.getUsersByRole(UserRole.STUDENT);
+      setUsers(students);
+      
+      // Carregar resultados de simulados do Firebase
+      const resultsQuery = query(
+        collection(db, 'examResults'),
+        orderBy('completedAt', 'desc')
+      );
+      const resultsSnapshot = await getDocs(resultsQuery);
+      
+      const results = await Promise.all(
+        resultsSnapshot.docs.map(async (doc) => {
+          const data = doc.data();
+          
+          // Buscar informações do usuário
+          let userName = 'Usuário desconhecido';
+          if (data.userId) {
+            try {
+              const user = await userService.getUserById(data.userId);
+              userName = user?.name || user?.email || 'Usuário desconhecido';
+            } catch (err) {
+              console.error('Erro ao buscar usuário:', err);
+            }
+          }
+          
+          return {
+            id: doc.id,
+            ...data,
+            userName,
+            date: data.completedAt?.toDate?.()?.toLocaleDateString('pt-PT') || 'Data desconhecida',
+          };
+        })
+      );
+      
+      setExamResults(results);
+      console.log(`${results.length} simulados carregados`);
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => { loadData(); }, []);
 
-  const updateStatus = async (id: string, status: 'active' | 'suspended' | 'pending') => {
-    const updated = tutors.map(t => t.id === id ? { ...t, status } : t);
-    setTutors(updated);
-    await AsyncStorage.setItem('eduprep_all_tutors', JSON.stringify(updated));
+  const filtered = users.filter(u =>
+    u.name?.toLowerCase().includes(filter.toLowerCase()) ||
+    u.email?.toLowerCase().includes(filter.toLowerCase()) ||
+    u.intendedCourse?.toLowerCase().includes(filter.toLowerCase())
+  );
+
+  const handleUserAction = (user: any, action: string) => {
+    setShowUserModal(false);
+    
+    switch (action) {
+      case 'block':
+        Alert.alert(
+          'Bloquear Utilizador',
+          `Tem certeza que deseja bloquear ${user.name}?`,
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            {
+              text: 'Bloquear',
+              style: 'destructive',
+              onPress: async () => {
+                try {
+                  await userService.updateUser(user.id, { status: 'suspended' });
+                  Alert.alert('Sucesso', 'Utilizador bloqueado com sucesso');
+                  loadData();
+                } catch (error) {
+                  Alert.alert('Erro', 'Não foi possível bloquear o utilizador');
+                }
+              },
+            },
+          ]
+        );
+        break;
+      case 'delete':
+        Alert.alert(
+          'Apagar Utilizador',
+          'Esta funcionalidade será implementada em breve. Por enquanto, você pode bloquear o utilizador.',
+          [{ text: 'OK' }]
+        );
+        break;
+      case 'resetPassword':
+        setResetEmail(user.email);
+        setShowPasswordModal(true);
+        break;
+      case 'viewProfile':
+        setSelectedUser(user);
+        setShowProfileModal(true);
+        break;
+    }
   };
 
-  const filtered = tutors.filter(t =>
-    t.name.toLowerCase().includes(filter.toLowerCase()) ||
-    t.subject.toLowerCase().includes(filter.toLowerCase())
-  );
+  const handleResetPassword = async () => {
+    try {
+      await sendPasswordResetEmail(auth, resetEmail);
+      Alert.alert('Sucesso', 'Email de redefinição de senha enviado com sucesso');
+      setShowPasswordModal(false);
+      setResetEmail('');
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível enviar o email de redefinição');
+    }
+  };
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -100,82 +194,307 @@ export default function AdminPanelScreen() {
         <Button mode="text" onPress={loadData} labelStyle={{ color: '#4f46e5', fontWeight: '700', fontSize: 12 }}>Atualizar</Button>
       </View>
 
-      {/* Admin Quick Actions */}
-      <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
-        <TouchableOpacity style={styles.quickAction} onPress={() => navigation.navigate('AdminExams')}>
-          <IconButton icon="school" iconColor="#4f46e5" size={20} style={{ margin: 0 }} />
-          <Text style={styles.quickActionText}>Exames</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.quickAction} onPress={() => navigation.navigate('AdminFinance')}>
-          <IconButton icon="cash-multiple" iconColor="#10b981" size={20} style={{ margin: 0 }} />
-          <Text style={styles.quickActionText}>Finanças</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.quickAction} onPress={() => navigation.navigate('AdminReports')}>
-          <IconButton icon="chart-line" iconColor="#f97316" size={20} style={{ margin: 0 }} />
-          <Text style={styles.quickActionText}>Relatórios</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Info */}
+      <Text variant="bodySmall" style={{ color: '#6b7280', marginBottom: 16 }}>
+        Visualize informações dos utilizadores e simulados realizados
+      </Text>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
         <View style={{ flexDirection: 'row', gap: 12, paddingRight: 16 }}>
-          <StatCard title="Total Utilizadores" value={tutors.length.toString()} trend="+2" icon="account-group" color="blue" />
-          <StatCard title="Pendentes" value={tutors.filter(t => t.status === 'pending').length.toString()} trend="Ação" icon="shield-check" color="orange" />
-          <StatCard title="Receita (Sim)" value="245k MT" trend="+5.4%" icon="currency-usd" color="green" />
-          <StatCard title="Aulas" value="856" trend="+20%" icon="book-open-variant" color="indigo" />
+          <StatCard 
+            title="Total Utilizadores" 
+            value={users.length.toString()} 
+            trend={`${users.length} ativos`} 
+            icon="account-group" 
+            color="blue" 
+          />
+          <StatCard 
+            title="Simulados Feitos" 
+            value={examResults.length.toString()} 
+            trend={examResults.length > 0 ? 'Registados' : 'Nenhum'} 
+            icon="file-document" 
+            color="green" 
+          />
+          <StatCard 
+            title="Média Geral" 
+            value={
+              examResults.length > 0 
+                ? `${(examResults.reduce((sum: number, r: any) => sum + (r.score || 0), 0) / examResults.length).toFixed(1)}%`
+                : '0%'
+            } 
+            trend={examResults.length > 0 ? `${examResults.length} exames` : '-'} 
+            icon="chart-line" 
+            color="indigo" 
+          />
         </View>
       </ScrollView>
 
+      {/* Lista de Utilizadores */}
       <Card style={styles.tableCard}>
         <Card.Content>
           <View style={styles.tableHeader}>
-            <Text variant="titleMedium" style={{ fontWeight: '800', color: '#111827' }}>Aprovação de Tutores</Text>
+            <Text variant="titleMedium" style={{ fontWeight: '800', color: '#111827' }}>Utilizadores Registados</Text>
           </View>
           <Searchbar
-            placeholder="Pesquisar tutor..."
+            placeholder="Pesquisar por nome, email ou curso..."
             value={filter}
             onChangeText={setFilter}
             style={styles.searchBar}
             inputStyle={{ fontSize: 13 }}
           />
 
-          {filtered.length > 0 ? filtered.map((tutor) => (
-            <View key={tutor.id} style={styles.tutorRow}>
+          {filtered.length > 0 ? filtered.map((user) => (
+            <View key={user.id} style={styles.tutorRow}>
               <Image
-                source={{ uri: tutor.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(tutor.name)}&background=4f46e5&color=fff` }}
+                source={{ uri: user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'U')}&background=4f46e5&color=fff` }}
                 style={styles.tutorAvatar}
               />
               <View style={{ flex: 1 }}>
-                <Text style={{ fontWeight: '700', fontSize: 14, color: '#111827' }}>{tutor.name}</Text>
-                <Text style={{ fontSize: 11, color: '#9ca3af' }}>{tutor.email}</Text>
+                <Text style={{ fontWeight: '700', fontSize: 14, color: '#111827' }}>{user.name || 'Sem nome'}</Text>
+                <Text style={{ fontSize: 11, color: '#9ca3af' }}>{user.email}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                  <View style={styles.subjectBadge}>
-                    <Text style={{ fontSize: 10, fontWeight: '600', color: '#4b5563' }}>{tutor.subject}</Text>
-                  </View>
-                  <StatusBadge status={tutor.status} />
+                  {user.intendedCourse && (
+                    <View style={styles.subjectBadge}>
+                      <Text style={{ fontSize: 10, fontWeight: '600', color: '#4b5563' }}>{user.intendedCourse}</Text>
+                    </View>
+                  )}
+                  {user.competingDisciplines && user.competingDisciplines.length > 0 && (
+                    <View style={[styles.subjectBadge, { backgroundColor: '#ecfdf5' }]}>
+                      <Text style={{ fontSize: 10, fontWeight: '600', color: '#10b981' }}>
+                        {user.competingDisciplines.length} disciplinas
+                      </Text>
+                    </View>
+                  )}
                 </View>
               </View>
-              <View style={{ flexDirection: 'row', gap: 4 }}>
-                {tutor.status === 'pending' && (
-                  <>
-                    <IconButton icon="check" iconColor="#10b981" size={18} style={{ backgroundColor: '#ecfdf5', borderRadius: 10 }} onPress={() => updateStatus(tutor.id, 'active')} />
-                    <IconButton icon="close" iconColor="#ef4444" size={18} style={{ backgroundColor: '#fef2f2', borderRadius: 10 }} onPress={() => updateStatus(tutor.id, 'suspended')} />
-                  </>
-                )}
-                {tutor.status === 'active' && (
-                  <IconButton icon="alert" iconColor="#f97316" size={18} style={{ backgroundColor: '#fff7ed', borderRadius: 10 }} onPress={() => updateStatus(tutor.id, 'suspended')} />
-                )}
-                {tutor.status === 'suspended' && (
-                  <IconButton icon="check" iconColor="#10b981" size={18} style={{ backgroundColor: '#ecfdf5', borderRadius: 10 }} onPress={() => updateStatus(tutor.id, 'active')} />
-                )}
-              </View>
+              <IconButton 
+                icon="information" 
+                iconColor="#4f46e5" 
+                size={18} 
+                style={{ backgroundColor: '#eef2ff', borderRadius: 10 }} 
+                onPress={() => {
+                  setSelectedUser(user);
+                  setShowUserModal(true);
+                }} 
+              />
             </View>
           )) : (
             <View style={{ alignItems: 'center', paddingVertical: 32 }}>
-              <Text style={{ color: '#9ca3af', fontStyle: 'italic' }}>Nenhum tutor encontrado.</Text>
+              <Text style={{ color: '#9ca3af', fontStyle: 'italic' }}>Nenhum utilizador encontrado.</Text>
             </View>
           )}
         </Card.Content>
       </Card>
+
+      {/* Simulados Realizados */}
+      <Card style={styles.tableCard}>
+        <Card.Content>
+          <View style={styles.tableHeader}>
+            <Text variant="titleMedium" style={{ fontWeight: '800', color: '#111827' }}>Simulados Realizados</Text>
+          </View>
+          
+          {examResults.length > 0 ? examResults.map((result: any) => {
+            const scoreColor = result.score >= 70 ? '#10b981' : result.score >= 50 ? '#f97316' : '#ef4444';
+            const scoreBg = result.score >= 70 ? '#ecfdf5' : result.score >= 50 ? '#fff7ed' : '#fef2f2';
+            
+            return (
+              <View key={result.id} style={styles.tutorRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontWeight: '700', fontSize: 14, color: '#111827' }}>
+                    {result.subject || result.examTitle || 'Simulado'}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: '#9ca3af' }}>
+                    {result.userName} • {result.date}
+                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                    <View style={[styles.subjectBadge, { backgroundColor: scoreBg, borderColor: scoreColor, borderWidth: 1 }]}>
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: scoreColor }}>
+                        {result.score?.toFixed(1) || 0}%
+                      </Text>
+                    </View>
+                    <View style={styles.subjectBadge}>
+                      <Text style={{ fontSize: 10, fontWeight: '600', color: '#4b5563' }}>
+                        {result.correctAnswers || 0}/{result.totalQuestions || 0} acertos
+                      </Text>
+                    </View>
+                    {result.timeTaken && (
+                      <View style={styles.subjectBadge}>
+                        <Text style={{ fontSize: 10, fontWeight: '600', color: '#6b7280' }}>
+                          ⏱️ {Math.floor(result.timeTaken / 60)}min
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              </View>
+            );
+          }) : (
+            <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+              <IconButton icon="file-document-outline" iconColor="#d1d5db" size={48} />
+              <Text style={{ color: '#9ca3af', fontStyle: 'italic', marginTop: 8 }}>
+                Nenhum simulado realizado ainda.
+              </Text>
+            </View>
+          )}
+        </Card.Content>
+      </Card>
+
+      {/* Modal de Ações do Utilizador */}
+      <Portal>
+        <Modal
+          visible={showUserModal}
+          onDismiss={() => setShowUserModal(false)}
+          contentContainerStyle={styles.modalContainer}
+        >
+          <Card>
+            <Card.Content>
+              <Text variant="titleLarge" style={{ fontWeight: '700', marginBottom: 16, color: '#111827' }}>
+                Ações do Utilizador
+              </Text>
+              {selectedUser && (
+                <>
+                  <Text variant="bodyMedium" style={{ marginBottom: 20, color: '#6b7280' }}>
+                    {selectedUser.name} ({selectedUser.email})
+                  </Text>
+                  
+                  <TouchableOpacity
+                    style={styles.modalButton}
+                    onPress={() => handleUserAction(selectedUser, 'viewProfile')}
+                  >
+                    <IconButton icon="account" iconColor="#4f46e5" size={20} />
+                    <Text style={styles.modalButtonText}>Ver Perfil Completo</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.modalButton}
+                    onPress={() => handleUserAction(selectedUser, 'resetPassword')}
+                  >
+                    <IconButton icon="lock-reset" iconColor="#f97316" size={20} />
+                    <Text style={styles.modalButtonText}>Redefinir Senha</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.modalButton}
+                    onPress={() => handleUserAction(selectedUser, 'block')}
+                  >
+                    <IconButton icon="block-helper" iconColor="#ef4444" size={20} />
+                    <Text style={styles.modalButtonText}>Bloquear Utilizador</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.modalButton}
+                    onPress={() => handleUserAction(selectedUser, 'delete')}
+                  >
+                    <IconButton icon="delete" iconColor="#dc2626" size={20} />
+                    <Text style={styles.modalButtonText}>Apagar Utilizador</Text>
+                  </TouchableOpacity>
+
+                  <Button
+                    mode="outlined"
+                    onPress={() => setShowUserModal(false)}
+                    style={{ marginTop: 16 }}
+                  >
+                    Cancelar
+                  </Button>
+                </>
+              )}
+            </Card.Content>
+          </Card>
+        </Modal>
+
+        {/* Modal de Perfil Completo */}
+        <Modal
+          visible={showProfileModal}
+          onDismiss={() => setShowProfileModal(false)}
+          contentContainerStyle={styles.modalContainer}
+        >
+          <Card>
+            <Card.Content>
+              <Text variant="titleLarge" style={{ fontWeight: '700', marginBottom: 16, color: '#111827' }}>
+                Perfil Completo
+              </Text>
+              {selectedUser && (
+                <>
+                  <View style={{ marginBottom: 12 }}>
+                    <Text variant="labelMedium" style={{ color: '#6b7280' }}>Nome</Text>
+                    <Text variant="bodyLarge" style={{ fontWeight: '600', color: '#111827' }}>{selectedUser.name}</Text>
+                  </View>
+                  <View style={{ marginBottom: 12 }}>
+                    <Text variant="labelMedium" style={{ color: '#6b7280' }}>Email</Text>
+                    <Text variant="bodyLarge" style={{ fontWeight: '600', color: '#111827' }}>{selectedUser.email}</Text>
+                  </View>
+                  <View style={{ marginBottom: 12 }}>
+                    <Text variant="labelMedium" style={{ color: '#6b7280' }}>Função</Text>
+                    <Text variant="bodyLarge" style={{ fontWeight: '600', color: '#111827' }}>{selectedUser.role}</Text>
+                  </View>
+                  <View style={{ marginBottom: 12 }}>
+                    <Text variant="labelMedium" style={{ color: '#6b7280' }}>Curso</Text>
+                    <Text variant="bodyLarge" style={{ fontWeight: '600', color: '#111827' }}>{selectedUser.intendedCourse || 'Não definido'}</Text>
+                  </View>
+                  <View style={{ marginBottom: 12 }}>
+                    <Text variant="labelMedium" style={{ color: '#6b7280' }}>Disciplinas</Text>
+                    <Text variant="bodyLarge" style={{ fontWeight: '600', color: '#111827' }}>{selectedUser.competingDisciplines?.join(', ') || 'Não definido'}</Text>
+                  </View>
+                  <View style={{ marginBottom: 12 }}>
+                    <Text variant="labelMedium" style={{ color: '#6b7280' }}>Status</Text>
+                    <Text variant="bodyLarge" style={{ fontWeight: '600', color: '#111827' }}>{selectedUser.status || 'active'}</Text>
+                  </View>
+                  <View style={{ marginBottom: 12 }}>
+                    <Text variant="labelMedium" style={{ color: '#6b7280' }}>ID</Text>
+                    <Text variant="bodySmall" style={{ color: '#6b7280' }}>{selectedUser.id}</Text>
+                  </View>
+                  <Button
+                    mode="contained"
+                    onPress={() => setShowProfileModal(false)}
+                    style={{ marginTop: 16 }}
+                  >
+                    Fechar
+                  </Button>
+                </>
+              )}
+            </Card.Content>
+          </Card>
+        </Modal>
+
+        {/* Modal de Redefinir Senha */}
+        <Modal
+          visible={showPasswordModal}
+          onDismiss={() => setShowPasswordModal(false)}
+          contentContainerStyle={styles.modalContainer}
+        >
+          <Card>
+            <Card.Content>
+              <Text variant="titleLarge" style={{ fontWeight: '700', marginBottom: 16, color: '#111827' }}>
+                Redefinir Senha
+              </Text>
+              <Text variant="bodyMedium" style={{ marginBottom: 16, color: '#6b7280' }}>
+                Um email de redefinição de senha será enviado para:
+              </Text>
+              <TextInput
+                mode="outlined"
+                label="Email"
+                value={resetEmail}
+                onChangeText={setResetEmail}
+                style={{ marginBottom: 16 }}
+                disabled
+              />
+              <Button
+                mode="contained"
+                onPress={handleResetPassword}
+                style={{ marginBottom: 8 }}
+              >
+                Enviar Email
+              </Button>
+              <Button
+                mode="outlined"
+                onPress={() => setShowPasswordModal(false)}
+              >
+                Cancelar
+              </Button>
+            </Card.Content>
+          </Card>
+        </Modal>
+      </Portal>
     </ScrollView>
   );
 }
@@ -201,4 +520,8 @@ const styles = StyleSheet.create({
   statusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 20, borderWidth: 1 },
   quickAction: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#fff', borderRadius: 14, paddingVertical: 12, borderWidth: 1, borderColor: '#f3f4f6' },
   quickActionText: { fontSize: 12, fontWeight: '700', color: '#374151' },
+  iconButton: { margin: 0 },
+  modalContainer: { backgroundColor: 'white', padding: 20, margin: 20, borderRadius: 20 },
+  modalButton: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  modalButtonText: { fontSize: 15, color: '#111827', fontWeight: '600', flex: 1 },
 });

@@ -1,0 +1,17 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 🚨 REGRAS DE DESENVOLVIMENTO - USAR APENAS PARA TESTES
+    // ⚠️ NUNCA USAR EM PRODUÇÃO!
+    
+    // Permitir tudo durante desenvolvimento
+    match /{document=**} {
+      allow read, write: if true;
+    }
+    
+    // Subcoleções de mensagens em lessons (para chat em tempo real)
+    match /lessons/{lessonId}/messages/{messageId} {
+      allow read, write: if true;
+    }
+  }
+}
