@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, Pressable } from 'react-native';
 import { Text, Card, IconButton, Button } from 'react-native-paper';
 import { useNavigation, CompositeNavigationProp } from '@react-navigation/native';
@@ -7,6 +7,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuthStore } from '../store/authStore';
 import { UserRole } from '../types';
 import { MainTabParamList, RootStackParamList } from '../navigation/AppNavigator';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type StackNav = NativeStackNavigationProp<RootStackParamList>;
 type ProfileNavigationProp = CompositeNavigationProp<
@@ -33,6 +34,31 @@ const getMenuItems = (userRole: UserRole | undefined, handleLogout: () => void) 
 export default function ProfileScreen() {
   const navigation = useNavigation();
   const { user, logout } = useAuthStore();
+  const [daysUntilExam, setDaysUntilExam] = useState<number | null>(null);
+
+  const calculateDaysUntilExam = async () => {
+    try {
+      const examDateStr = await AsyncStorage.getItem('user_exam_date');
+      if (examDateStr) {
+        const monthMap: { [key: string]: number } = {
+          'Janeiro': 0, 'Fevereiro': 1, 'Março': 2, 'Abril': 3, 'Maio': 4, 'Junho': 5,
+          'Julho': 6, 'Agosto': 7, 'Setembro': 8, 'Outubro': 9, 'Novembro': 10, 'Dezembro': 11
+        };
+        const [month, year] = examDateStr.split(' ');
+        const examDate = new Date(parseInt(year), monthMap[month] || 0, 1);
+        const today = new Date();
+        const diffTime = examDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        setDaysUntilExam(diffDays > 0 ? diffDays : 0);
+      }
+    } catch (error) {
+      console.error('Erro ao calcular dias até o exame:', error);
+    }
+  };
+
+  useEffect(() => {
+    calculateDaysUntilExam();
+  }, []);
 
   const handleLogout = async () => {
     console.log('handleLogout chamado');
@@ -117,6 +143,28 @@ export default function ProfileScreen() {
           </View>
         </Card.Content>
       </Card>
+
+      {/* Contagem Regressiva para o Exame */}
+      {daysUntilExam !== null && (
+        <Card style={styles.countdownCard}>
+          <Card.Content style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={styles.countdownIcon}>
+                <Text style={{ fontSize: 28 }}>⏰</Text>
+              </View>
+              <View>
+                <Text variant="labelSmall" style={{ color: '#6b7280', marginBottom: 2 }}>Faltam para o exame</Text>
+                <Text variant="headlineMedium" style={{ fontWeight: '800', color: '#111827' }}>
+                  {daysUntilExam} {daysUntilExam === 1 ? 'dia' : 'dias'}
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity onPress={() => navigation.navigate('AcademicSetup' as never)}>
+              <Text style={{ color: '#4f46e5', fontWeight: '600', fontSize: 14 }}>Alterar</Text>
+            </TouchableOpacity>
+          </Card.Content>
+        </Card>
+      )}
 
       {/* Settings Menu */}
       <Card style={styles.menuCard}>
@@ -206,6 +254,8 @@ const styles = StyleSheet.create({
   walletBtnSolid: { flex: 1, paddingVertical: 12, backgroundColor: '#fff', borderRadius: 12, alignItems: 'center' },
   statsCard: { backgroundColor: '#fff', borderRadius: 20, elevation: 0, borderWidth: 1, borderColor: '#f3f4f6', marginBottom: 16 },
   statItem: { flex: 1, alignItems: 'center', paddingVertical: 8 },
+  countdownCard: { backgroundColor: '#fef3c7', borderRadius: 20, elevation: 0, borderWidth: 1, borderColor: '#fde68a', marginBottom: 16 },
+  countdownIcon: { width: 48, height: 48, borderRadius: 12, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   menuCard: { backgroundColor: '#fff', borderRadius: 20, elevation: 0, borderWidth: 1, borderColor: '#f3f4f6' },
   menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 },
   iconButton: { margin: 0 },
