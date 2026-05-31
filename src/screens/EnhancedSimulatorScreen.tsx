@@ -322,6 +322,13 @@ export default function EnhancedSimulatorScreen() {
 
   // SETUP MODE
   if (mode === 'setup') {
+    const isReadyToStart = selectedSubject !== '';
+    const setupProgress = [
+      { label: 'Universidade', completed: selectedInstitution !== '', optional: true },
+      { label: 'Disciplina', completed: selectedSubject !== '', optional: false },
+      { label: 'Tópico', completed: selectedTopic !== '', optional: true },
+    ];
+
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <ScrollView contentContainerStyle={styles.content}>
@@ -329,6 +336,28 @@ export default function EnhancedSimulatorScreen() {
             <IconButton icon="arrow-left" onPress={() => navigation.goBack()} />
             <Text variant="headlineSmall" style={styles.title}>Simulador de Exames</Text>
           </View>
+
+          {/* Progresso de Configuração */}
+          <Card style={styles.progressCard}>
+            <Card.Content>
+              <Text variant="titleMedium" style={styles.sectionTitle}>📋 Configuração</Text>
+              <View style={styles.progressItems}>
+                {setupProgress.map((item, index) => (
+                  <View key={index} style={styles.progressItem}>
+                    <View style={[styles.progressIcon, { backgroundColor: item.completed ? '#10b981' : '#e5e7eb' }]}>
+                      <Text style={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}>
+                        {item.completed ? '✓' : index + 1}
+                      </Text>
+                    </View>
+                    <Text style={[styles.progressLabel, { color: item.completed ? '#10b981' : '#6b7280' }]}>
+                      {item.label} {item.optional && '(opcional)'}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </Card.Content>
+          </Card>
+
           <Card style={styles.card}>
             <Card.Content>
               <Text variant="titleMedium" style={styles.sectionTitle}>🎓 Universidade</Text>
@@ -920,5 +949,31 @@ const styles = StyleSheet.create({
   resultButton: {
     flex: 1,
     borderRadius: 12,
+  },
+  progressCard: {
+    backgroundColor: '#eef2ff',
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+  },
+  progressItems: {
+    gap: 12,
+  },
+  progressItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  progressIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressLabel: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
