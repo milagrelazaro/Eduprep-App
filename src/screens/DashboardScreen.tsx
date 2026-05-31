@@ -8,6 +8,7 @@ import { useAuthStore } from '../store/authStore';
 import { UserRole } from '../types';
 import { MainTabParamList, RootStackParamList } from '../navigation/AppNavigator';
 import { examResultService } from '../services/firebaseService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type StackNav = NativeStackNavigationProp<RootStackParamList>;
 type DashboardNavigationProp = CompositeNavigationProp<
@@ -58,6 +59,31 @@ export default function DashboardScreen() {
   };
 
   const [examResults, setExamResults] = useState<any[]>([]);
+  const [daysUntilExam, setDaysUntilExam] = useState<number | null>(null);
+
+  const calculateDaysUntilExam = async () => {
+    try {
+      const examDateStr = await AsyncStorage.getItem('user_exam_date');
+      if (examDateStr) {
+        const monthMap: { [key: string]: number } = {
+          'Janeiro': 0, 'Fevereiro': 1, 'Março': 2, 'Abril': 3, 'Maio': 4, 'Junho': 5,
+          'Julho': 6, 'Agosto': 7, 'Setembro': 8, 'Outubro': 9, 'Novembro': 10, 'Dezembro': 11
+        };
+        const [month, year] = examDateStr.split(' ');
+        const examDate = new Date(parseInt(year), monthMap[month] || 0, 1);
+        const today = new Date();
+        const diffTime = examDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        setDaysUntilExam(diffDays > 0 ? diffDays : 0);
+      }
+    } catch (error) {
+      console.error('Erro ao calcular dias até o exame:', error);
+    }
+  };
+
+  useEffect(() => {
+    calculateDaysUntilExam();
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -101,6 +127,28 @@ export default function DashboardScreen() {
           onPress={handleLogout}
         />
       </View>
+
+      {/* Contagem Regressiva para Estudantes */}
+      {isStudent && daysUntilExam !== null && (
+        <Card style={styles.countdownCard}>
+          <Card.Content style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={styles.countdownIcon}>
+                <Text style={{ fontSize: 28 }}>⏰</Text>
+              </View>
+              <View>
+                <Text variant="labelSmall" style={{ color: '#6b7280', marginBottom: 2 }}>Faltam para o exame</Text>
+                <Text variant="headlineMedium" style={{ fontWeight: '800', color: '#111827' }}>
+                  {daysUntilExam} {daysUntilExam === 1 ? 'dia' : 'dias'}
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
+              <Text style={{ color: '#4f46e5', fontWeight: '600', fontSize: 14 }}>Configurar</Text>
+            </TouchableOpacity>
+          </Card.Content>
+        </Card>
+      )}
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 24 }}>
         <View style={{ flexDirection: 'row', gap: 12, paddingRight: 16 }}>
@@ -202,6 +250,8 @@ const styles = StyleSheet.create({
   content: { padding: 16, paddingBottom: 32 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 },
   greeting: { fontWeight: '800', color: '#111827' },
+  countdownCard: { backgroundColor: '#fef3c7', borderRadius: 20, elevation: 0, borderWidth: 1, borderColor: '#fde68a', marginBottom: 16 },
+  countdownIcon: { width: 48, height: 48, borderRadius: 12, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   dashCard: { width: 180, backgroundColor: '#fff', borderRadius: 20, elevation: 0, borderWidth: 1, borderColor: '#f3f4f6' },
   dashCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   dashIconBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
