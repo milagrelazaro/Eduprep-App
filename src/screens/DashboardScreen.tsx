@@ -140,7 +140,7 @@ export default function DashboardScreen() {
       </Card>
 
       {/* Histórico Recente (apenas para estudantes) */}
-      {isStudent && examResults.length > 0 && (
+      {isStudent && examResults.length > 0 ? (
         <Card style={styles.sectionCard}>
           <Card.Content>
             <Text variant="titleMedium" style={styles.sectionTitle}>📊 Histórico Recente</Text>
@@ -159,6 +159,18 @@ export default function DashboardScreen() {
                 </View>
               </View>
             ))}
+          </Card.Content>
+        </Card>
+      ) : isStudent && (
+        <Card style={styles.sectionCard}>
+          <Card.Content style={{ alignItems: 'center', padding: 24 }}>
+            <Text style={{ fontSize: 40, marginBottom: 12 }}>🎯</Text>
+            <Text variant="titleMedium" style={{ fontWeight: '700', color: '#111827', marginBottom: 4, textAlign: 'center' }}>
+              Comece sua jornada!
+            </Text>
+            <Text variant="bodyMedium" style={{ color: '#6b7280', textAlign: 'center' }}>
+              Faça seu primeiro simulado para ver seu histórico aqui.
+            </Text>
           </Card.Content>
         </Card>
       )}

@@ -14,19 +14,24 @@ type ProfileNavigationProp = CompositeNavigationProp<
   StackNav
 >;
 
-const getMenuItems = (userRole: UserRole | undefined, handleLogout: () => void) => {
+const getRoleLabel = (role: string | undefined) => {
+  if (!role) return '';
+  const roleMap: { [key: string]: string } = {
+    student: 'Estudante',
+    admin: 'Administrador',
+  };
+  return roleMap[role] || role.toUpperCase();
+};
+
+const getMenuItems = (userRole: UserRole | undefined) => {
   // Admin não tem menu de perfil - edita direto no Firebase
   if (userRole === UserRole.ADMIN) {
     return [];
   }
 
-  // Apenas para estudantes
+  // Apenas para estudantes - sem botão Sair aqui
   return [
     { label: 'Configuração Acadêmica', icon: 'school', color: '#10b981', screen: 'AcademicSetup' },
-    { label: 'Sair', icon: 'logout', color: '#ef4444', action: () => {
-      console.log('Menu item Sair pressionado');
-      handleLogout();
-    } },
   ];
 };
 
@@ -65,7 +70,7 @@ export default function ProfileScreen() {
     }
   };
 
-  const menuItems = getMenuItems(user?.role, handleLogout);
+  const menuItems = getMenuItems(user?.role);
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} pointerEvents="box-none">
@@ -81,7 +86,7 @@ export default function ProfileScreen() {
             <Text variant="bodySmall" style={{ color: '#6b7280', marginBottom: 8 }}>{user?.email}</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <View style={styles.roleBadge}>
-                <Text style={{ fontSize: 9, fontWeight: '800', color: '#4f46e5', letterSpacing: 2 }}>{user?.role?.toUpperCase()}</Text>
+                <Text style={{ fontSize: 9, fontWeight: '800', color: '#4f46e5', letterSpacing: 2 }}>{getRoleLabel(user?.role)}</Text>
               </View>
               <View style={[styles.roleBadge, { backgroundColor: '#ecfdf5' }]}>
                 <IconButton icon="shield-check" iconColor="#10b981" size={10} style={styles.iconButton} />
@@ -118,6 +123,19 @@ export default function ProfileScreen() {
         </Card.Content>
       </Card>
 
+      {/* Mensagem motivacional para novos utilizadores */}
+      <Card style={styles.motivationCard}>
+        <Card.Content style={{ alignItems: 'center', padding: 20 }}>
+          <Text style={{ fontSize: 32, marginBottom: 8 }}>🎯</Text>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 4, textAlign: 'center' }}>
+            Comece sua jornada!
+          </Text>
+          <Text style={{ fontSize: 14, color: '#6b7280', textAlign: 'center' }}>
+            Faça seu primeiro simulado para ver seu progresso aqui.
+          </Text>
+        </Card.Content>
+      </Card>
+
       {/* Settings Menu */}
       <Card style={styles.menuCard}>
         <Card.Content style={{ padding: 0 }}>
@@ -125,7 +143,7 @@ export default function ProfileScreen() {
             <TouchableOpacity 
               key={i} 
               style={[styles.menuItem, i < menuItems.length - 1 && { borderBottomWidth: 1, borderBottomColor: '#f9fafb' }]}
-              onPress={() => item.action ? item.action() : navigation.navigate(item.screen as never)}
+              onPress={() => navigation.navigate(item.screen as never)}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
                 <View style={[styles.menuIcon, { backgroundColor: '#f9fafb' }]}>
@@ -133,11 +151,19 @@ export default function ProfileScreen() {
                 </View>
                 <Text style={{ fontWeight: '700', color: '#1f2937', fontSize: 15 }}>{item.label}</Text>
               </View>
-              {!item.action && <IconButton icon="chevron-right" iconColor="#d1d5db" size={20} style={styles.iconButton} />}
+              <IconButton icon="chevron-right" iconColor="#d1d5db" size={20} style={styles.iconButton} />
             </TouchableOpacity>
           ))}
         </Card.Content>
       </Card>
+
+      {/* Botão Sair separado com destaque */}
+      <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <IconButton icon="logout" iconColor="#fff" size={20} style={styles.iconButton} />
+          <Text style={{ fontWeight: '700', color: '#fff', fontSize: 16 }}>Sair da Conta</Text>
+        </View>
+      </TouchableOpacity>
 
     </ScrollView>
   );
@@ -206,8 +232,10 @@ const styles = StyleSheet.create({
   walletBtnSolid: { flex: 1, paddingVertical: 12, backgroundColor: '#fff', borderRadius: 12, alignItems: 'center' },
   statsCard: { backgroundColor: '#fff', borderRadius: 20, elevation: 0, borderWidth: 1, borderColor: '#f3f4f6', marginBottom: 16 },
   statItem: { flex: 1, alignItems: 'center', paddingVertical: 8 },
+  motivationCard: { backgroundColor: '#eef2ff', borderRadius: 20, elevation: 0, borderWidth: 1, borderColor: '#dbeafe', marginBottom: 16 },
   menuCard: { backgroundColor: '#fff', borderRadius: 20, elevation: 0, borderWidth: 1, borderColor: '#f3f4f6' },
   menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 },
   iconButton: { margin: 0 },
   menuIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  logoutButton: { backgroundColor: '#ef4444', borderRadius: 16, padding: 16, marginTop: 8, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4 },
 });

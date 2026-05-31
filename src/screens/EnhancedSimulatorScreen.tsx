@@ -651,6 +651,59 @@ export default function EnhancedSimulatorScreen() {
             </Text>
           </Card.Content>
         </Card>
+
+        {/* Revisão de Respostas */}
+        <Card style={styles.card}>
+          <Card.Content>
+            <Text variant="titleMedium" style={styles.sectionTitle}>📝 Revisão de Respostas</Text>
+            {examQuestions.map((question, index) => {
+              const userAnswer = answers[question.id];
+              const isCorrect = userAnswer === question.correctOption;
+              return (
+                <View key={question.id} style={[styles.reviewItem, {borderLeftColor: isCorrect ? '#10b981' : '#ef4444'}]}>
+                  <View style={styles.reviewHeader}>
+                    <Text style={styles.reviewQuestionNumber}>Questão {index + 1}</Text>
+                    <View style={[styles.reviewBadge, {backgroundColor: isCorrect ? '#ecfdf5' : '#fef2f2'}]}>
+                      <Text style={[styles.reviewBadgeText, {color: isCorrect ? '#10b981' : '#ef4444'}]}>
+                        {isCorrect ? '✓ Correta' : '✗ Incorreta'}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.reviewQuestionText}>{question.text}</Text>
+                  <View style={styles.reviewAnswers}>
+                    {question.options.map((option: string, optIndex: number) => (
+                      <View 
+                        key={optIndex} 
+                        style={[
+                          styles.reviewOption,
+                          optIndex === question.correctOption && styles.correctOptionStyle,
+                          userAnswer === optIndex && optIndex !== question.correctOption && styles.incorrectOptionStyle
+                        ]}
+                      >
+                        <Text style={[
+                          styles.reviewOptionText,
+                          optIndex === question.correctOption && styles.correctOptionText,
+                          userAnswer === optIndex && optIndex !== question.correctOption && styles.incorrectOptionText
+                        ]}>
+                          {option}
+                        </Text>
+                        {optIndex === question.correctOption && <Text style={styles.correctIndicator}>✓</Text>}
+                        {userAnswer === optIndex && optIndex !== question.correctOption && <Text style={styles.incorrectIndicator}>✗</Text>}
+                      </View>
+                    ))}
+                  </View>
+                  {question.explanation && (
+                    <View style={styles.explanationBox}>
+                      <Text style={styles.explanationLabel}>Explicação:</Text>
+                      <Text style={styles.explanationText}>{question.explanation}</Text>
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </Card.Content>
+        </Card>
+
         <View style={styles.resultActions}>
           <Button
             mode="outlined"
@@ -920,5 +973,104 @@ const styles = StyleSheet.create({
   resultButton: {
     flex: 1,
     borderRadius: 12,
+  },
+  reviewItem: {
+    padding: 16,
+    marginBottom: 12,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  reviewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  reviewQuestionNumber: {
+    fontWeight: '700',
+    color: '#111827',
+    fontSize: 14,
+  },
+  reviewBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  reviewBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  reviewQuestionText: {
+    fontSize: 15,
+    color: '#374151',
+    marginBottom: 12,
+    lineHeight: 22,
+  },
+  reviewAnswers: {
+    gap: 8,
+  },
+  reviewOption: {
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#f9fafb',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  correctOptionStyle: {
+    backgroundColor: '#ecfdf5',
+    borderWidth: 1,
+    borderColor: '#10b981',
+  },
+  incorrectOptionStyle: {
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#ef4444',
+  },
+  reviewOptionText: {
+    fontSize: 14,
+    color: '#374151',
+    flex: 1,
+  },
+  correctOptionText: {
+    color: '#065f46',
+    fontWeight: '600',
+  },
+  incorrectOptionText: {
+    color: '#991b1b',
+    fontWeight: '600',
+  },
+  correctIndicator: {
+    color: '#10b981',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  incorrectIndicator: {
+    color: '#ef4444',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  explanationBox: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#fef3c7',
+    borderRadius: 8,
+  },
+  explanationLabel: {
+    fontWeight: '700',
+    color: '#92400e',
+    fontSize: 13,
+    marginBottom: 4,
+  },
+  explanationText: {
+    fontSize: 13,
+    color: '#78350f',
+    lineHeight: 18,
   },
 });
