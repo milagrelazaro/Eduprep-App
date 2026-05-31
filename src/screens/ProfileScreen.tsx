@@ -195,23 +195,26 @@ export default function ProfileScreen() {
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
                 <View style={[styles.menuIcon, { backgroundColor: '#f9fafb' }]}>
-                  <IconButton icon={item.icon} iconColor={item.color} size={20} style={styles.iconButton} />
+                  <Text style={{ fontSize: 20 }}>{item.icon === 'school' ? '🎓' : '⚙️'}</Text>
                 </View>
                 <Text style={{ fontWeight: '700', color: '#1f2937', fontSize: 15 }}>{item.label}</Text>
               </View>
-              <IconButton icon="chevron-right" iconColor="#d1d5db" size={20} style={styles.iconButton} />
+              <Text style={{ fontSize: 20, color: '#d1d5db' }}>›</Text>
             </TouchableOpacity>
           ))}
         </Card.Content>
       </Card>
 
       {/* Botão Sair separado com destaque */}
-      <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <IconButton icon="logout" iconColor="#fff" size={20} style={styles.iconButton} />
-          <Text style={{ fontWeight: '700', color: '#fff', fontSize: 16 }}>Sair da Conta</Text>
-        </View>
-      </TouchableOpacity>
+      <Button 
+        mode="contained" 
+        onPress={handleLogout} 
+        style={styles.logoutButton}
+        icon="logout"
+        contentStyle={{ flexDirection: 'row', gap: 8 }}
+      >
+        Sair da Conta
+      </Button>
 
     </ScrollView>
   );
