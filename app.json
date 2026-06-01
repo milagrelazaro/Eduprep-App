@@ -26,10 +26,11 @@
       "package": "com.sixmc.eduprep",
       "versionCode": 1,
       "permissions": [
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "CAMERA",
-        "READ_MEDIA_IMAGES"
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "plugins": [
@@ -45,11 +46,11 @@
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
     },
+    "owner": "sixac",
     "extra": {
       "eas": {
-        "projectId": "f9a8ea48-3975-4b8c-9f17-7201c44a4ace"
+        "projectId": "e1c6c2b4-ef13-44d9-add6-567659b1f8ad"
       }
-    },
-    "owner": "sixac"
+    }
   }
 }
