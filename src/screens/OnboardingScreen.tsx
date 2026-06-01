@@ -1,35 +1,63 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { Text, Button, Card, IconButton, Chip } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { Text, Button, Card, Chip } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuthStore } from '../store/authStore';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Onboarding'>;
 
 const INSTITUTIONS = ['UEM', 'UP', 'UCM', 'ISCTEM', 'Unilúrio', 'Universidade Zambeze'];
 const COURSES = ['Medicina', 'Engenharia', 'Direito', 'Economia', 'Arquitetura', 'Farmácia', 'Veterinária', 'Psicologia'];
+const SUBJECTS = ['Matemática', 'Física', 'Química', 'Biologia', 'Português', 'Inglês', 'História', 'Geografia'];
 
 export default function OnboardingScreen() {
   const navigation = useNavigation<Nav>();
+  const { updateUser } = useAuthStore();
   const [step, setStep] = useState(1);
   const [selectedInstitution, setSelectedInstitution] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('');
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [examDate, setExamDate] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const toggleSubject = (subject: string) => {
+    if (selectedSubjects.includes(subject)) {
+      setSelectedSubjects(selectedSubjects.filter(s => s !== subject));
+    } else {
+      setSelectedSubjects([...selectedSubjects, subject]);
+    }
+  };
 
   const handleNext = async () => {
-    if (step === 1 && selectedInstitution) {
+    if (step === 1 && selectedCourse) {
       setStep(2);
-    } else if (step === 2 && selectedCourse) {
+    } else if (step === 2 && selectedSubjects.length > 0) {
       setStep(3);
     } else if (step === 3 && examDate) {
-      // Salvar dados e navegar
-      await AsyncStorage.setItem('onboarding_completed', 'true');
-      await AsyncStorage.setItem('user_institution', selectedInstitution);
-      await AsyncStorage.setItem('user_course', selectedCourse);
-      await AsyncStorage.setItem('user_exam_date', examDate);
-      navigation.navigate('Login');
+      // Salvar dados no perfil do usuário
+      setSaving(true);
+      try {
+        await updateUser({
+          intendedCourse: selectedCourse,
+          competingDisciplines: selectedSubjects,
+        });
+        
+        // Salvar data do exame no AsyncStorage
+        await AsyncStorage.setItem('user_exam_date', examDate);
+        
+        // Navegar para o Main (Dashboard)
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Main' }],
+        });
+      } catch (error) {
+        Alert.alert('Erro', 'Não foi possível salvar as configurações');
+      } finally {
+        setSaving(false);
+      }
     }
   };
 
@@ -42,27 +70,7 @@ export default function OnboardingScreen() {
   const renderStep1 = () => (
     <View style={styles.stepContainer}>
       <Text variant="titleLarge" style={styles.stepTitle}>Passo 1 de 3</Text>
-      <Text variant="bodyMedium" style={styles.stepSubtitle}>Selecione a universidade onde pretende ingressar</Text>
-      <View style={styles.chipsContainer}>
-        {INSTITUTIONS.map((inst) => (
-          <Chip
-            key={inst}
-            selected={selectedInstitution === inst}
-            onPress={() => setSelectedInstitution(inst)}
-            style={styles.chip}
-            textStyle={selectedInstitution === inst ? styles.chipTextSelected : styles.chipText}
-          >
-            {inst}
-          </Chip>
-        ))}
-      </View>
-    </View>
-  );
-
-  const renderStep2 = () => (
-    <View style={styles.stepContainer}>
-      <Text variant="titleLarge" style={styles.stepTitle}>Passo 2 de 3</Text>
-      <Text variant="bodyMedium" style={styles.stepSubtitle}>Selecione o curso pretendido</Text>
+      <Text variant="bodyMedium" style={styles.stepSubtitle}>Selecione o curso que pretende fazer</Text>
       <View style={styles.chipsContainer}>
         {COURSES.map((course) => (
           <Chip
@@ -73,6 +81,26 @@ export default function OnboardingScreen() {
             textStyle={selectedCourse === course ? styles.chipTextSelected : styles.chipText}
           >
             {course}
+          </Chip>
+        ))}
+      </View>
+    </View>
+  );
+
+  const renderStep2 = () => (
+    <View style={styles.stepContainer}>
+      <Text variant="titleLarge" style={styles.stepTitle}>Passo 2 de 3</Text>
+      <Text variant="bodyMedium" style={styles.stepSubtitle}>Selecione as disciplinas do seu exame ({selectedSubjects.length} selecionadas)</Text>
+      <View style={styles.chipsContainer}>
+        {SUBJECTS.map((subject) => (
+          <Chip
+            key={subject}
+            selected={selectedSubjects.includes(subject)}
+            onPress={() => toggleSubject(subject)}
+            style={styles.chip}
+            textStyle={selectedSubjects.includes(subject) ? styles.chipTextSelected : styles.chipText}
+          >
+            {subject}
           </Chip>
         ))}
       </View>
@@ -132,9 +160,10 @@ export default function OnboardingScreen() {
           mode="contained"
           onPress={handleNext}
           style={styles.button}
+          loading={saving}
           disabled={
-            (step === 1 && !selectedInstitution) ||
-            (step === 2 && !selectedCourse) ||
+            (step === 1 && !selectedCourse) ||
+            (step === 2 && selectedSubjects.length === 0) ||
             (step === 3 && !examDate)
           }
         >
@@ -143,15 +172,7 @@ export default function OnboardingScreen() {
       </View>
 
       <View style={styles.footer}>
-        <Text variant="bodySmall" style={{ color: '#9ca3af' }}>Já tem uma conta? </Text>
-        <Button
-          mode="text"
-          compact
-          onPress={() => navigation.navigate('Login')}
-          labelStyle={{ color: '#4f46e5', fontWeight: '700' }}
-        >
-          Fazer Login
-        </Button>
+        <Text variant="bodySmall" style={{ color: '#9ca3af', textAlign: 'center' }}>Configure seu perfil para ter acesso aos simulados personalizados</Text>
       </View>
     </ScrollView>
   );

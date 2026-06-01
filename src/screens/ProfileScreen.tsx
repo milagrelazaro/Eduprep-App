@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Alert, Image } from 'react-native';
 import { Text, Card, Button } from 'react-native-paper';
-import { useNavigation, CompositeNavigationProp } from '@react-navigation/native';
+import { useNavigation, CompositeNavigationProp, useFocusEffect } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuthStore } from '../store/authStore';
 import { UserRole } from '../types';
 import { MainTabParamList, RootStackParamList } from '../navigation/AppNavigator';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../config/firebase';
 
 type StackNav = NativeStackNavigationProp<RootStackParamList>;
 type ProfileNavigationProp = CompositeNavigationProp<
@@ -40,6 +42,8 @@ export default function ProfileScreen() {
   const navigation = useNavigation();
   const { user, logout } = useAuthStore();
   const [daysUntilExam, setDaysUntilExam] = useState<number | null>(null);
+  const [examStats, setExamStats] = useState({ total: 0, average: 0 });
+  const [loading, setLoading] = useState(true);
 
   const calculateDaysUntilExam = async () => {
     try {
@@ -61,9 +65,43 @@ export default function ProfileScreen() {
     }
   };
 
+  const loadExamStats = async () => {
+    if (!user?.id) return;
+    
+    try {
+      setLoading(true);
+      const resultsQuery = query(
+        collection(db, 'examResults'),
+        where('userId', '==', user.id)
+      );
+      const resultsSnapshot = await getDocs(resultsQuery);
+      
+      const results = resultsSnapshot.docs.map(doc => doc.data());
+      const total = results.length;
+      const average = total > 0 
+        ? results.reduce((sum, r) => sum + (r.score || 0), 0) / total
+        : 0;
+      
+      setExamStats({ total, average });
+      console.log(`Estatísticas carregadas: ${total} simulados, média ${average.toFixed(1)}%`);
+    } catch (error) {
+      console.error('Erro ao carregar estatísticas:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     calculateDaysUntilExam();
+    loadExamStats();
   }, []);
+
+  // Recarregar estatísticas quando a tela ganhar foco
+  useFocusEffect(
+    React.useCallback(() => {
+      loadExamStats();
+    }, [user?.id])
+  );
 
   const handleLogout = async () => {
     console.log('handleLogout chamado');
@@ -124,31 +162,32 @@ export default function ProfileScreen() {
       </Card>
 
       {/* Stats */}
-      <Card style={styles.statsCard}>
-        <Card.Content style={{ flexDirection: 'row' }}>
-          <View style={[styles.statItem, { borderRightWidth: 1, borderRightColor: '#f3f4f6' }]}>
-            <Text style={{ color: '#9ca3af', fontSize: 12 }}>Simulados Feitos</Text>
-            <Text style={{ fontSize: 22, fontWeight: '800', color: '#111827' }}>0</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={{ color: '#9ca3af', fontSize: 12 }}>Média</Text>
-            <Text style={{ fontSize: 22, fontWeight: '800', color: '#111827' }}>0.0</Text>
-          </View>
-        </Card.Content>
-      </Card>
-
-      {/* Mensagem motivacional para novos utilizadores */}
-      <Card style={styles.motivationCard}>
-        <Card.Content style={{ alignItems: 'center', padding: 20 }}>
-          <Text style={{ fontSize: 32, marginBottom: 8 }}>🎯</Text>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 4, textAlign: 'center' }}>
-            Comece sua jornada!
-          </Text>
-          <Text style={{ fontSize: 14, color: '#6b7280', textAlign: 'center' }}>
-            Faça seu primeiro simulado para ver seu progresso aqui.
-          </Text>
-        </Card.Content>
-      </Card>
+      {examStats.total > 0 ? (
+        <Card style={styles.statsCard}>
+          <Card.Content style={{ flexDirection: 'row' }}>
+            <View style={[styles.statItem, { borderRightWidth: 1, borderRightColor: '#f3f4f6' }]}>
+              <Text style={{ color: '#9ca3af', fontSize: 12 }}>Simulados Feitos</Text>
+              <Text style={{ fontSize: 22, fontWeight: '800', color: '#111827' }}>{examStats.total}</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={{ color: '#9ca3af', fontSize: 12 }}>Média</Text>
+              <Text style={{ fontSize: 22, fontWeight: '800', color: '#111827' }}>{examStats.average.toFixed(1)}%</Text>
+            </View>
+          </Card.Content>
+        </Card>
+      ) : (
+        <Card style={styles.motivationCard}>
+          <Card.Content style={{ alignItems: 'center', padding: 20 }}>
+            <Text style={{ fontSize: 32, marginBottom: 8 }}>🎯</Text>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 4, textAlign: 'center' }}>
+              Comece sua jornada!
+            </Text>
+            <Text style={{ fontSize: 14, color: '#6b7280', textAlign: 'center' }}>
+              Faça seu primeiro simulado para ver seu progresso aqui.
+            </Text>
+          </Card.Content>
+        </Card>
+      )}
 
       {/* Contagem Regressiva para o Exame */}
       {daysUntilExam !== null && (

@@ -3,7 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useAuthStore } from '../store/authStore';
 import { UserRole } from '../types';
-import { IconButton } from 'react-native-paper';
+import { Text, View } from 'react-native';
 
 import OnboardingScreen from '../screens/OnboardingScreen';
 import LoginScreen from '../screens/LoginScreen';
@@ -15,8 +15,8 @@ import AdminExamsScreen from '../screens/AdminExamsScreen';
 import AcademicSetupScreen from '../screens/AcademicSetupScreen';
 
 export type RootStackParamList = {
-  Onboarding: undefined;
   Login: undefined;
+  Onboarding: undefined;
   Main: undefined;
   MainTabs: undefined;
   EnhancedSimulator: undefined;
@@ -61,8 +61,8 @@ function MainTabs() {
         component={DashboardScreen}
         options={{
           tabBarLabel: 'Início',
-          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-            <IconButton icon="home" iconColor={color} size={size} />
+          tabBarIcon: ({ color }: { color: string }) => (
+            <Text style={{ fontSize: 24 }}>🏠</Text>
           ),
         }}
       />
@@ -71,8 +71,8 @@ function MainTabs() {
         component={EnhancedSimulatorScreen}
         options={{
           tabBarLabel: 'Simulador',
-          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-            <IconButton icon="school" iconColor={color} size={size} />
+          tabBarIcon: ({ color }: { color: string }) => (
+            <Text style={{ fontSize: 24 }}>🎓</Text>
           ),
         }}
       />
@@ -82,8 +82,8 @@ function MainTabs() {
           component={ProfileScreen}
           options={{
             tabBarLabel: 'Perfil',
-            tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-              <IconButton icon="account" iconColor={color} size={size} />
+            tabBarIcon: ({ color }: { color: string }) => (
+              <Text style={{ fontSize: 24 }}>👤</Text>
             ),
           }}
         />
@@ -94,8 +94,8 @@ function MainTabs() {
           component={AdminPanelScreen}
           options={{
             tabBarLabel: 'Admin',
-            tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-              <IconButton icon="shield-account" iconColor={color} size={size} />
+            tabBarIcon: ({ color }: { color: string }) => (
+              <Text style={{ fontSize: 24 }}>🛡️</Text>
             ),
           }}
         />
@@ -106,13 +106,19 @@ function MainTabs() {
 
 export default function AppNavigator() {
   const { user } = useAuthStore();
+  
+  // Verificar se o usuário precisa completar o onboarding
+  const needsOnboarding = user && (!user.intendedCourse || !user.competingDisciplines || user.competingDisciplines.length === 0);
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {!user ? (
         <>
-          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
+        </>
+      ) : needsOnboarding ? (
+        <>
+          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         </>
       ) : (
         <>

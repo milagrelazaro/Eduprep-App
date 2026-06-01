@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
-import { Text, TextInput, Button, IconButton, Chip } from 'react-native-paper';
+import { Text, TextInput, Button, Chip } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -85,7 +85,7 @@ export default function LoginScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
           <View style={styles.iconBox}>
-            <IconButton icon="shield-check" iconColor="#fff" size={32} />
+            <Text style={{ fontSize: 32 }}>🛡️</Text>
           </View>
           <Text variant="headlineMedium" style={styles.title}>
             {isLogin ? 'Bem-vindo de volta' : 'Crie a sua conta'}
@@ -152,7 +152,6 @@ export default function LoginScreen() {
             placeholder="exemplo@gmail.com"
             keyboardType="email-address"
             autoCapitalize="none"
-            left={<TextInput.Icon icon="email" />}
           />
 
           <TextInput
@@ -164,7 +163,6 @@ export default function LoginScreen() {
             outlineStyle={styles.inputOutline}
             placeholder="••••••••"
             secureTextEntry
-            left={<TextInput.Icon icon="lock" />}
           />
 
           <Button
