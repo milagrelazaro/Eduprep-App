@@ -56,14 +56,33 @@ export default function DashboardScreen() {
   const isStudent = user?.role === UserRole.STUDENT;
 
   const handleLogout = async () => {
-    Alert.alert(
-      'Sair',
-      'Tem certeza que deseja sair?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Sair', style: 'destructive', onPress: async () => await logout() },
-      ]
-    );
+    console.log('handleLogout Dashboard chamado');
+    // Usar window.confirm para web, Alert.alert para nativo
+    const confirmed = typeof window !== 'undefined' 
+      ? window.confirm('Tem certeza que deseja sair?')
+      : await new Promise((resolve) => {
+          Alert.alert(
+            'Sair',
+            'Tem certeza que deseja sair?',
+            [
+              { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
+              { 
+                text: 'Sair', 
+                style: 'destructive', 
+                onPress: () => resolve(true) 
+              },
+            ]
+          );
+        });
+
+    if (confirmed) {
+      try {
+        await logout();
+        console.log('Logout realizado com sucesso');
+      } catch (error) {
+        console.error('Erro ao fazer logout:', error);
+      }
+    }
   };
 
   const [examResults, setExamResults] = useState<any[]>([]);
