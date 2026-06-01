@@ -329,7 +329,7 @@ export const examResultService = {
     try {
       const q = query(
         collection(db, EXAM_RESULTS_COLLECTION),
-        where('studentId', '==', studentId),
+        where('userId', '==', studentId),
         orderBy('date', 'desc')
       );
       const querySnapshot = await getDocs(q);
