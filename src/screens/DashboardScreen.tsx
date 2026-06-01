@@ -101,16 +101,19 @@ export default function DashboardScreen() {
 
   const loadExamResults = async () => {
     try {
-      console.log('=== CARREGANDO RESULTADOS DO FIRESTORE ===');
-      console.log('User ID:', user?.id ?? '');
+      console.log('=== DASHBOARD: CARREGANDO RESULTADOS ===');
+      console.log('User ID:', user?.id);
+      console.log('User Email:', user?.email);
       const results = await examResultService.getResultsByStudent(user?.id ?? '');
-      console.log('Resultados carregados:', results);
-      console.log('Quantidade de resultados:', results.length);
+      console.log('Total de resultados encontrados:', results.length);
+      if (results.length > 0) {
+        console.log('IDs dos resultados:', results.map(r => r.id));
+        console.log('Scores:', results.map(r => r.score));
+      }
       setExamResults(results);
       console.log('=== FIM DO CARREGAMENTO ===');
     } catch (error) {
       console.error('Error loading exam results:', error);
-      console.error('Error details:', JSON.stringify(error, null, 2));
     }
   };
 
@@ -165,9 +168,9 @@ export default function DashboardScreen() {
         <View style={{ flexDirection: 'row', gap: 12, paddingRight: 16 }}>
           {isStudent ? (
             <>
-              <DashCard title="Simulados Feitos" value={examResults.length.toString()} subtitle="Total de sessões" icon="trophy" color="green" />
-              <DashCard title="Média" value={`${averageScore}/20`} subtitle="Pontuação média" icon="chart-line" color="indigo" />
-              <DashCard title="Progresso" value={examResults.length > 0 ? `${Math.min(100, examResults.length * 10)}%` : '0%'} subtitle="Baseado em simulados" icon="trending-up" color="blue" />
+              <DashCard title="Simulados Feitos" value={examResults.length.toString()} subtitle="Total realizado" icon="trophy" color="green" />
+              <DashCard title="Média Geral" value={`${averageScore}%`} subtitle="Pontuação média" icon="chart-line" color="indigo" />
+              <DashCard title="Último Score" value={examResults.length > 0 ? `${examResults[0].score.toFixed(1)}%` : '0%'} subtitle="Simulado mais recente" icon="trending-up" color="blue" />
             </>
           ) : (
             <>
