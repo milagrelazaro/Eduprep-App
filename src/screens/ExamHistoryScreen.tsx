@@ -125,8 +125,13 @@ export default function ExamHistoryScreen() {
         </Card>
       ) : (
         examResults.map((result: any, index: number) => (
-          <Card key={result.id} style={styles.resultCard}>
-            <Card.Content>
+          <TouchableOpacity 
+            key={result.id}
+            onPress={() => navigation.navigate('ExamReview' as never, { resultId: result.id } as never)}
+            activeOpacity={0.7}
+          >
+            <Card style={styles.resultCard}>
+              <Card.Content>
               <View style={styles.resultHeader}>
                 <View style={{ flex: 1 }}>
                   <Text variant="titleMedium" style={styles.examName}>
@@ -178,6 +183,7 @@ export default function ExamHistoryScreen() {
               )}
             </Card.Content>
           </Card>
+          </TouchableOpacity>
         ))
       )}
     </ScrollView>

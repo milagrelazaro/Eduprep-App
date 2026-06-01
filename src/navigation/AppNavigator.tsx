@@ -14,6 +14,7 @@ import EnhancedSimulatorScreen from '../screens/EnhancedSimulatorScreen';
 import AdminExamsScreen from '../screens/AdminExamsScreen';
 import AcademicSetupScreen from '../screens/AcademicSetupScreen';
 import ExamHistoryScreen from '../screens/ExamHistoryScreen';
+import ExamReviewScreen from '../screens/ExamReviewScreen';
 
 export type RootStackParamList = {
   Login: undefined;
@@ -24,6 +25,7 @@ export type RootStackParamList = {
   AdminExams: undefined;
   AcademicSetup: undefined;
   ExamHistory: undefined;
+  ExamReview: { resultId: string };
 };
 
 export type MainTabParamList = {
@@ -129,6 +131,7 @@ export default function AppNavigator() {
           <Stack.Screen name="AdminExams" component={AdminExamsScreen} />
           <Stack.Screen name="AcademicSetup" component={AcademicSetupScreen} />
           <Stack.Screen name="ExamHistory" component={ExamHistoryScreen} />
+          <Stack.Screen name="ExamReview" component={ExamReviewScreen} />
         </>
       )}
     </Stack.Navigator>
