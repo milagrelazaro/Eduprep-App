@@ -6,6 +6,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { userService, authService } from '../services/firebaseService';
 import { UserRole } from '../types';
+import { useAuthStore } from '../store/authStore';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { sendPasswordResetEmail } from 'firebase/auth';
@@ -63,6 +64,7 @@ function StatusBadge({ status }: { status: string }) {
 
 export default function AdminPanelScreen() {
   const navigation = useNavigation<Nav>();
+  const { logout } = useAuthStore();
   const [users, setUsers] = useState<any[]>([]);
   const [examResults, setExamResults] = useState<any[]>([]);
   const [filter, setFilter] = useState('');
@@ -72,6 +74,35 @@ export default function AdminPanelScreen() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
+
+  const handleLogout = async () => {
+    console.log('handleLogout Admin chamado');
+    const confirmed = typeof window !== 'undefined' 
+      ? window.confirm('Tem certeza que deseja sair?')
+      : await new Promise((resolve) => {
+          Alert.alert(
+            'Sair',
+            'Tem certeza que deseja sair?',
+            [
+              { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
+              { 
+                text: 'Sair', 
+                style: 'destructive', 
+                onPress: () => resolve(true) 
+              },
+            ]
+          );
+        });
+
+    if (confirmed) {
+      try {
+        await logout();
+        console.log('Logout Admin realizado com sucesso');
+      } catch (error) {
+        console.error('Erro ao fazer logout:', error);
+      }
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -187,16 +218,20 @@ export default function AdminPanelScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <TouchableOpacity 
-            onPress={() => navigation.goBack()} 
-            style={styles.backButton}
-          >
-            <Text style={{ fontSize: 24, color: '#4f46e5' }}>←</Text>
-          </TouchableOpacity>
-          <View style={styles.headerContent}>
+          <View style={{ flex: 1 }}>
             <Text variant="headlineSmall" style={{ fontWeight: '800', color: '#111827' }}>Painel Administrativo</Text>
             <Text variant="bodyMedium" style={{ color: '#6b7280' }}>Gestão global de utilizadores e aprovações.</Text>
           </View>
+          <TouchableOpacity
+            onPress={() => {
+              console.log('Botão Sair Admin clicado');
+              handleLogout();
+            }}
+            style={{ backgroundColor: '#fef2f2', borderRadius: 12, padding: 12, marginLeft: 12 }}
+            activeOpacity={0.7}
+          >
+            <Text style={{ fontSize: 24 }}>🚪</Text>
+          </TouchableOpacity>
         </View>
         <Button mode="text" onPress={loadData} labelStyle={{ color: '#4f46e5', fontWeight: '700', fontSize: 12 }}>Atualizar</Button>
       </View>
