@@ -13,6 +13,7 @@ import AdminPanelScreen from '../screens/AdminPanelScreen';
 import EnhancedSimulatorScreen from '../screens/EnhancedSimulatorScreen';
 import AdminExamsScreen from '../screens/AdminExamsScreen';
 import AcademicSetupScreen from '../screens/AcademicSetupScreen';
+import ExamHistoryScreen from '../screens/ExamHistoryScreen';
 
 export type RootStackParamList = {
   Login: undefined;
@@ -22,6 +23,7 @@ export type RootStackParamList = {
   EnhancedSimulator: undefined;
   AdminExams: undefined;
   AcademicSetup: undefined;
+  ExamHistory: undefined;
 };
 
 export type MainTabParamList = {
@@ -126,6 +128,7 @@ export default function AppNavigator() {
           <Stack.Screen name="EnhancedSimulator" component={EnhancedSimulatorScreen} options={{ headerShown: false }} />
           <Stack.Screen name="AdminExams" component={AdminExamsScreen} />
           <Stack.Screen name="AcademicSetup" component={AcademicSetupScreen} />
+          <Stack.Screen name="ExamHistory" component={ExamHistoryScreen} />
         </>
       )}
     </Stack.Navigator>

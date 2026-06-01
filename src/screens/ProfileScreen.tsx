@@ -164,15 +164,28 @@ export default function ProfileScreen() {
       {/* Stats */}
       {examStats.total > 0 ? (
         <Card style={styles.statsCard}>
-          <Card.Content style={{ flexDirection: 'row' }}>
-            <View style={[styles.statItem, { borderRightWidth: 1, borderRightColor: '#f3f4f6' }]}>
-              <Text style={{ color: '#9ca3af', fontSize: 12 }}>Simulados Feitos</Text>
-              <Text style={{ fontSize: 22, fontWeight: '800', color: '#111827' }}>{examStats.total}</Text>
+          <Card.Content>
+            <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+              <View style={[styles.statItem, { borderRightWidth: 1, borderRightColor: '#f3f4f6' }]}>
+                <Text style={{ color: '#9ca3af', fontSize: 12 }}>Simulados Feitos</Text>
+                <Text style={{ fontSize: 22, fontWeight: '800', color: '#111827' }}>{examStats.total}</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={{ color: '#9ca3af', fontSize: 12 }}>Média</Text>
+                <Text style={{ fontSize: 22, fontWeight: '800', color: '#111827' }}>{examStats.average.toFixed(1)}%</Text>
+              </View>
             </View>
-            <View style={styles.statItem}>
-              <Text style={{ color: '#9ca3af', fontSize: 12 }}>Média</Text>
-              <Text style={{ fontSize: 22, fontWeight: '800', color: '#111827' }}>{examStats.average.toFixed(1)}%</Text>
-            </View>
+            <TouchableOpacity 
+              onPress={() => navigation.navigate('ExamHistory' as never)}
+              style={{ 
+                backgroundColor: '#4f46e5', 
+                padding: 12, 
+                borderRadius: 8, 
+                alignItems: 'center' 
+              }}
+            >
+              <Text style={{ color: '#fff', fontWeight: '700' }}>📋 Ver Histórico Completo</Text>
+            </TouchableOpacity>
           </Card.Content>
         </Card>
       ) : (
