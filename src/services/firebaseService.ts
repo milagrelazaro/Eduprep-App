@@ -327,10 +327,10 @@ export const examResultService = {
   // Get results by student
   async getResultsByStudent(studentId: string) {
     try {
+      // Removido orderBy para evitar necessidade de índice composto
       const q = query(
         collection(db, EXAM_RESULTS_COLLECTION),
-        where('userId', '==', studentId),
-        orderBy('date', 'desc')
+        where('userId', '==', studentId)
       );
       const querySnapshot = await getDocs(q);
 
@@ -341,7 +341,7 @@ export const examResultService = {
         return null;
       };
       
-      return querySnapshot.docs.map(doc => {
+      const results = querySnapshot.docs.map(doc => {
         const data = doc.data();
         return {
           id: doc.id,
@@ -356,6 +356,13 @@ export const examResultService = {
           correctAnswers: data.correctAnswers || undefined,
           duration: data.duration || 0,
         };
+      });
+      
+      // Ordenar por data (mais recente primeiro) no código
+      return results.sort((a, b) => {
+        const dateA = a.date instanceof Date ? a.date.getTime() : 0;
+        const dateB = b.date instanceof Date ? b.date.getTime() : 0;
+        return dateB - dateA;
       });
     } catch (error) {
       console.error('Error getting results by student:', error);
