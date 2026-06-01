@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Linking, Alert } from 'react-native';
-import { Text, Card, IconButton, Button, Chip, ProgressBar } from 'react-native-paper';
+import { Text, Card, Button, Chip, ProgressBar } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -459,14 +459,14 @@ export default function EnhancedSimulatorScreen() {
                   style={[styles.modeCard, isTimed && styles.modeCardActive]}
                   onPress={() => setIsTimed(true)}
                 >
-                  <IconButton icon="clock-outline" iconColor={isTimed ? '#4f46e5' : '#9ca3af'} />
+                  <Text style={{ fontSize: 24 }}>⏱️</Text>
                   <Text style={[styles.modeText, isTimed && styles.modeTextActive]}>Com Cronômetro</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.modeCard, !isTimed && styles.modeCardActive]}
                   onPress={() => setIsTimed(false)}
                 >
-                  <IconButton icon="infinity" iconColor={!isTimed ? '#4f46e5' : '#9ca3af'} />
+                  <Text style={{ fontSize: 24 }}>∞</Text>
                   <Text style={[styles.modeText, !isTimed && styles.modeTextActive]}>Sem Limite</Text>
                 </TouchableOpacity>
               </View>
@@ -496,12 +496,14 @@ export default function EnhancedSimulatorScreen() {
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.examHeader}>
           <View style={styles.examHeaderTop}>
-            <IconButton icon="close" onPress={() => {
+            <TouchableOpacity onPress={() => {
               Alert.alert('Sair do Simulado', 'Deseja realmente sair? Seu progresso será perdido.', [
                 { text: 'Cancelar', style: 'cancel' },
                 { text: 'Sair', onPress: resetSimulator, style: 'destructive' },
               ]);
-            }}/>
+            }} style={{ padding: 8 }}>
+              <Text style={{ fontSize: 24 }}>✕</Text>
+            </TouchableOpacity>
             <View style={{flex: 1}}>
               <Text style={styles.examTitle}>{selectedSubject}</Text>
               <Text style={styles.examSubtitle}>
@@ -510,7 +512,7 @@ export default function EnhancedSimulatorScreen() {
             </View>
             {isTimed && (
               <View style={styles.timer}>
-                <IconButton icon="clock-outline" iconColor="#f97316" size={16} style={{margin: 0}}/>
+                <Text style={{ fontSize: 16, marginRight: 4 }}>⏱️</Text>
                 <Text style={styles.timerText}>
                   {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
                 </Text>
@@ -565,12 +567,7 @@ export default function EnhancedSimulatorScreen() {
                   <View style={styles.optionContent}>
                     <View style={[styles.optionCircle, isSelected && !showResult && styles.optionCircleSelected]}>
                       {showResult && icon ? (
-                        <IconButton
-                          icon={icon}
-                          iconColor={isCorrectOption ? '#10b981' : '#ef4444'}
-                          size={20}
-                          style={{margin: 0}}
-                        />
+                        <Text style={{ fontSize: 16 }}>{isCorrectOption ? '✓' : '✗'}</Text>
                       ) : (
                         <Text style={styles.optionLetter}>{String.fromCharCode(65 + index)}</Text>
                       )}
