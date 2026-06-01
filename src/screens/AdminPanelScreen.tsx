@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Image, TouchableOpacity, Alert } from 'react-native';
-import { Text, Card, IconButton, Searchbar, Button, Portal, Modal, TextInput } from 'react-native-paper';
+import { Text, Card, Searchbar, Button, Portal, Modal, TextInput } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -23,11 +23,17 @@ function StatCard({ title, value, trend, icon, color }: any) {
   };
   const c = colorMap[color] || colorMap.indigo;
 
+  const iconEmoji: { [key: string]: string } = {
+    'account-group': '👥',
+    'file-document': '📝',
+    'chart-line': '📈',
+  };
+
   return (
     <Card style={styles.statCard}>
       <Card.Content>
         <View style={[styles.statIcon, { backgroundColor: c.bg }]}>
-          <IconButton icon={icon} iconColor={c.text} size={22} style={styles.iconButton} />
+          <Text style={{ fontSize: 22 }}>{iconEmoji[icon] || '📊'}</Text>
         </View>
         <Text style={styles.statLabel}>{title}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 4 }}>
@@ -181,11 +187,12 @@ export default function AdminPanelScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <IconButton 
-            icon="arrow-left" 
+          <TouchableOpacity 
             onPress={() => navigation.goBack()} 
             style={styles.backButton}
-          />
+          >
+            <Text style={{ fontSize: 24, color: '#4f46e5' }}>←</Text>
+          </TouchableOpacity>
           <View style={styles.headerContent}>
             <Text variant="headlineSmall" style={{ fontWeight: '800', color: '#111827' }}>Painel Administrativo</Text>
             <Text variant="bodyMedium" style={{ color: '#6b7280' }}>Gestão global de utilizadores e aprovações.</Text>
@@ -267,16 +274,15 @@ export default function AdminPanelScreen() {
                   )}
                 </View>
               </View>
-              <IconButton 
-                icon="information" 
-                iconColor="#4f46e5" 
-                size={18} 
-                style={{ backgroundColor: '#eef2ff', borderRadius: 10 }} 
+              <TouchableOpacity 
+                style={{ backgroundColor: '#eef2ff', borderRadius: 10, padding: 8 }} 
                 onPress={() => {
                   setSelectedUser(user);
                   setShowUserModal(true);
-                }} 
-              />
+                }}
+              >
+                <Text style={{ fontSize: 18 }}>ℹ️</Text>
+              </TouchableOpacity>
             </View>
           )) : (
             <View style={{ alignItems: 'center', paddingVertical: 32 }}>
@@ -330,8 +336,8 @@ export default function AdminPanelScreen() {
             );
           }) : (
             <View style={{ alignItems: 'center', paddingVertical: 32 }}>
-              <IconButton icon="file-document-outline" iconColor="#d1d5db" size={48} />
-              <Text style={{ color: '#9ca3af', fontStyle: 'italic', marginTop: 8 }}>
+              <Text style={{ fontSize: 48, marginBottom: 8 }}>📝</Text>
+              <Text style={{ color: '#9ca3af', fontStyle: 'italic' }}>
                 Nenhum simulado realizado ainda.
               </Text>
             </View>
@@ -361,7 +367,7 @@ export default function AdminPanelScreen() {
                     style={styles.modalButton}
                     onPress={() => handleUserAction(selectedUser, 'viewProfile')}
                   >
-                    <IconButton icon="account" iconColor="#4f46e5" size={20} />
+                    <Text style={{ fontSize: 20, marginRight: 8 }}>👤</Text>
                     <Text style={styles.modalButtonText}>Ver Perfil Completo</Text>
                   </TouchableOpacity>
 
@@ -369,7 +375,7 @@ export default function AdminPanelScreen() {
                     style={styles.modalButton}
                     onPress={() => handleUserAction(selectedUser, 'resetPassword')}
                   >
-                    <IconButton icon="lock-reset" iconColor="#f97316" size={20} />
+                    <Text style={{ fontSize: 20, marginRight: 8 }}>🔐</Text>
                     <Text style={styles.modalButtonText}>Redefinir Senha</Text>
                   </TouchableOpacity>
 
@@ -377,7 +383,7 @@ export default function AdminPanelScreen() {
                     style={styles.modalButton}
                     onPress={() => handleUserAction(selectedUser, 'block')}
                   >
-                    <IconButton icon="block-helper" iconColor="#ef4444" size={20} />
+                    <Text style={{ fontSize: 20, marginRight: 8 }}>⛔</Text>
                     <Text style={styles.modalButtonText}>Bloquear Utilizador</Text>
                   </TouchableOpacity>
 
@@ -385,7 +391,7 @@ export default function AdminPanelScreen() {
                     style={styles.modalButton}
                     onPress={() => handleUserAction(selectedUser, 'delete')}
                   >
-                    <IconButton icon="delete" iconColor="#dc2626" size={20} />
+                    <Text style={{ fontSize: 20, marginRight: 8 }}>🗑️</Text>
                     <Text style={styles.modalButtonText}>Apagar Utilizador</Text>
                   </TouchableOpacity>
 

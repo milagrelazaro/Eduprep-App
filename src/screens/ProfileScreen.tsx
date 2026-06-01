@@ -99,7 +99,7 @@ export default function ProfileScreen() {
   const menuItems = getMenuItems(user?.role);
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content} pointerEvents="box-none">
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       {/* Profile Header */}
       <Card style={styles.headerCard}>
         <Card.Content style={styles.headerContent}>
@@ -194,9 +194,16 @@ export default function ProfileScreen() {
       </Card>
 
       {/* Botão Sair separado com destaque */}
-      <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          <Text style={{ fontSize: 20 }}>🚪</Text>
+      <TouchableOpacity 
+        onPress={() => {
+          console.log('Botão Sair clicado');
+          handleLogout();
+        }} 
+        style={styles.logoutButton}
+        activeOpacity={0.7}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+          <Text style={{ fontSize: 24 }}>🚪</Text>
           <Text style={{ fontWeight: '700', color: '#fff', fontSize: 16 }}>Sair da Conta</Text>
         </View>
       </TouchableOpacity>
