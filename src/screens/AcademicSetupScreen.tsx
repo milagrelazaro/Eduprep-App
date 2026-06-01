@@ -152,7 +152,7 @@ export default function AcademicSetupScreen() {
         <Card style={[styles.card, { backgroundColor: '#f0fdf4', borderColor: '#10b981' }]}>
           <Card.Content>
             <View style={styles.sectionHeader}>
-              <IconButton icon="check-circle" iconColor="#10b981" size={24} style={{ margin: 0 }} />
+              <Text style={{ fontSize: 24, marginRight: 8 }}>✅</Text>
               <Text variant="titleMedium" style={[styles.sectionTitle, { color: '#10b981' }]}>
                 Configuração Atual
               </Text>
