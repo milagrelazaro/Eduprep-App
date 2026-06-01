@@ -128,8 +128,12 @@ export default function DashboardScreen() {
           </Text>
         </View>
         <TouchableOpacity
-          onPress={handleLogout}
-          style={{ backgroundColor: '#fef2f2', borderRadius: 12, padding: 8 }}
+          onPress={() => {
+            console.log('Botão Sair Dashboard clicado');
+            handleLogout();
+          }}
+          style={{ backgroundColor: '#fef2f2', borderRadius: 12, padding: 12 }}
+          activeOpacity={0.7}
         >
           <Text style={{ fontSize: 24 }}>🚪</Text>
         </TouchableOpacity>
