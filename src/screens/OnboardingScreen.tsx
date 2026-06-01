@@ -101,7 +101,7 @@ export default function OnboardingScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.logoContainer}>
         <View style={styles.logoBox}>
-          <IconButton icon="school" iconColor="#fff" size={40} />
+          <Text style={{ fontSize: 40 }}>🎓</Text>
         </View>
       </View>
 

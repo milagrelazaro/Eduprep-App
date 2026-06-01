@@ -333,7 +333,9 @@ export default function EnhancedSimulatorScreen() {
       <SafeAreaView style={styles.container} edges={['top']}>
         <ScrollView contentContainerStyle={styles.content}>
           <View style={styles.header}>
-            <IconButton icon="arrow-left" onPress={() => navigation.goBack()} />
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+              <Text style={{ fontSize: 24 }}>←</Text>
+            </TouchableOpacity>
             <Text variant="headlineSmall" style={styles.title}>Simulador de Exames</Text>
           </View>
 
@@ -1127,5 +1129,9 @@ const styles = StyleSheet.create({
   progressLabel: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  backButton: {
+    padding: 8,
+    marginRight: 8,
   },
 });

@@ -26,12 +26,20 @@ function DashCard({ title, value, subtitle, icon, color }: any) {
   };
   const c = colorMap[color] || colorMap.indigo;
 
+  const iconEmoji: { [key: string]: string } = {
+    'trophy': '🏆',
+    'chart-line': '📈',
+    'trending-up': '📊',
+    'check-circle': '✅',
+    'shield-account': '🛡️',
+  };
+
   return (
     <Card style={styles.dashCard}>
       <Card.Content>
         <View style={styles.dashCardHeader}>
           <View style={[styles.dashIconBox, { backgroundColor: c.bg }]}>
-            <IconButton icon={icon} iconColor={c.text} size={22} />
+            <Text style={{ fontSize: 22 }}>{iconEmoji[icon] || '📋'}</Text>
           </View>
           <Text variant="labelSmall" style={styles.dashCardLabel}>{title}</Text>
         </View>
@@ -119,13 +127,12 @@ export default function DashboardScreen() {
             {isStudent ? 'Pronto para praticar os simulados de exames?' : 'Gerencie os exames do sistema.'}
           </Text>
         </View>
-        <IconButton
-          icon="logout"
-          iconColor="#ef4444"
-          size={24}
-          style={{ backgroundColor: '#fef2f2', borderRadius: 12 }}
+        <TouchableOpacity
           onPress={handleLogout}
-        />
+          style={{ backgroundColor: '#fef2f2', borderRadius: 12, padding: 8 }}
+        >
+          <Text style={{ fontSize: 24 }}>🚪</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Contagem Regressiva para Estudantes */}

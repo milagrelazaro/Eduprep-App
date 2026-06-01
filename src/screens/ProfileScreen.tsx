@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, Pressable } from 'react-native';
-import { Text, Card, IconButton, Button } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Alert, Image } from 'react-native';
+import { Text, Card, Button } from 'react-native-paper';
 import { useNavigation, CompositeNavigationProp } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -115,24 +115,12 @@ export default function ProfileScreen() {
                 <Text style={{ fontSize: 9, fontWeight: '800', color: '#4f46e5', letterSpacing: 2 }}>{getRoleLabel(user?.role)}</Text>
               </View>
               <View style={[styles.roleBadge, { backgroundColor: '#ecfdf5' }]}>
-                <IconButton icon="shield-check" iconColor="#10b981" size={10} style={styles.iconButton} />
+                <Text style={{ fontSize: 10 }}>✅</Text>
                 <Text style={{ fontSize: 9, fontWeight: '800', color: '#10b981', letterSpacing: 1 }}>VERIFICADA</Text>
               </View>
             </View>
           </View>
         </Card.Content>
-        <Button
-          mode="text"
-          onPress={() => {
-            console.log('Button logout pressionado');
-            handleLogout();
-          }}
-          icon="logout"
-          textColor="#ef4444"
-          style={{ alignSelf: 'flex-end', margin: 8 }}
-        >
-          Sair
-        </Button>
       </Card>
 
       {/* Stats */}
@@ -206,15 +194,12 @@ export default function ProfileScreen() {
       </Card>
 
       {/* Botão Sair separado com destaque */}
-      <Button 
-        mode="contained" 
-        onPress={handleLogout} 
-        style={styles.logoutButton}
-        icon="logout"
-        contentStyle={{ flexDirection: 'row', gap: 8 }}
-      >
-        Sair da Conta
-      </Button>
+      <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <Text style={{ fontSize: 20 }}>🚪</Text>
+          <Text style={{ fontWeight: '700', color: '#fff', fontSize: 16 }}>Sair da Conta</Text>
+        </View>
+      </TouchableOpacity>
 
     </ScrollView>
   );
@@ -288,7 +273,6 @@ const styles = StyleSheet.create({
   countdownIcon: { width: 48, height: 48, borderRadius: 12, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   menuCard: { backgroundColor: '#fff', borderRadius: 20, elevation: 0, borderWidth: 1, borderColor: '#f3f4f6' },
   menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 },
-  iconButton: { margin: 0 },
   menuIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   logoutButton: { backgroundColor: '#ef4444', borderRadius: 16, padding: 16, marginTop: 8, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4 },
 });

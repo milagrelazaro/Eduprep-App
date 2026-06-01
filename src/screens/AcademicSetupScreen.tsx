@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Alert } from 'react-native';
-import { Text, Card, IconButton, Button, Chip } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
+import { Text, Card, Button, Chip } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../store/authStore';
 
@@ -73,12 +73,12 @@ export default function AcademicSetupScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.header}>
-        <IconButton 
-          icon="arrow-left" 
+        <TouchableOpacity 
           onPress={() => navigation.goBack()} 
           style={styles.backButton}
-          iconColor="#4f46e5"
-        />
+        >
+          <Text style={{ fontSize: 24, color: '#4f46e5' }}>←</Text>
+        </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text variant="headlineSmall" style={styles.title}>Configuração Acadêmica</Text>
           <Text variant="bodySmall" style={styles.subtitle}>
@@ -91,7 +91,7 @@ export default function AcademicSetupScreen() {
       <Card style={styles.card}>
         <Card.Content>
           <View style={styles.sectionHeader}>
-            <IconButton icon="school" iconColor="#4f46e5" size={24} style={{ margin: 0 }} />
+            <Text style={{ fontSize: 24, marginRight: 8 }}>🎓</Text>
             <Text variant="titleMedium" style={styles.sectionTitle}>Curso Pretendido</Text>
           </View>
           <Text variant="bodySmall" style={styles.sectionDesc}>
@@ -121,7 +121,7 @@ export default function AcademicSetupScreen() {
       <Card style={styles.card}>
         <Card.Content>
           <View style={styles.sectionHeader}>
-            <IconButton icon="book-open-variant" iconColor="#10b981" size={24} style={{ margin: 0 }} />
+            <Text style={{ fontSize: 24, marginRight: 8 }}>📚</Text>
             <Text variant="titleMedium" style={styles.sectionTitle}>Disciplinas de Exame</Text>
           </View>
           <Text variant="bodySmall" style={styles.sectionDesc}>
