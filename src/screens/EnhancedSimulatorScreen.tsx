@@ -645,7 +645,7 @@ export default function EnhancedSimulatorScreen() {
             {score >= 14 ? '🎉 Excelente!' : score >= 10 ? '👍 Bom Trabalho!' : '📚 Continue Estudando!'}
           </Text>
           <Text style={styles.resultSubtitle}>
-            Você acertou {correctCount} de {examQuestions.length} questões ({percentage.toFixed(0)}%)
+            Você acertou {correctCount} de {examQuestions.length} questões ({(percentage || 0).toFixed(0)}%)
           </Text>
         </View>
         <Card style={styles.card}>
@@ -661,7 +661,7 @@ export default function EnhancedSimulatorScreen() {
                 <Text style={styles.statLabel}>Erros</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{percentage.toFixed(0)}%</Text>
+                <Text style={styles.statValue}>{(percentage || 0).toFixed(0)}%</Text>
                 <Text style={styles.statLabel}>Aproveitamento</Text>
               </View>
             </View>
