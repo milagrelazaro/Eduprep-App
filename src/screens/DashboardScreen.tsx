@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Text, Card, IconButton, Button } from 'react-native-paper';
 import { useNavigation, CompositeNavigationProp, useFocusEffect } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuthStore } from '../store/authStore';
 import { UserRole } from '../types';
+import LogoutModal from '../components/LogoutModal';
 import { MainTabParamList, RootStackParamList } from '../navigation/AppNavigator';
 import { examResultService } from '../services/firebaseService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -54,34 +55,15 @@ export default function DashboardScreen() {
   const { user, logout } = useAuthStore();
   const navigation = useNavigation<DashboardNavigationProp>();
   const isStudent = user?.role === UserRole.STUDENT;
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const handleLogout = async () => {
-    console.log('handleLogout Dashboard chamado');
-    // Usar window.confirm para web, Alert.alert para nativo
-    const confirmed = typeof window !== 'undefined' 
-      ? window.confirm('Tem certeza que deseja sair?')
-      : await new Promise((resolve) => {
-          Alert.alert(
-            'Sair',
-            'Tem certeza que deseja sair?',
-            [
-              { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
-              { 
-                text: 'Sair', 
-                style: 'destructive', 
-                onPress: () => resolve(true) 
-              },
-            ]
-          );
-        });
-
-    if (confirmed) {
-      try {
-        await logout();
-        console.log('Logout realizado com sucesso');
-      } catch (error) {
-        console.error('Erro ao fazer logout:', error);
-      }
+    try {
+      await logout();
+      console.log('Logout realizado com sucesso');
+      setShowLogoutModal(false);
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
     }
   };
 
@@ -150,16 +132,19 @@ export default function DashboardScreen() {
           </Text>
         </View>
         <TouchableOpacity
-          onPress={() => {
-            console.log('Botão Sair Dashboard clicado');
-            handleLogout();
-          }}
+          onPress={() => setShowLogoutModal(true)}
           style={{ backgroundColor: '#fef2f2', borderRadius: 12, padding: 12 }}
           activeOpacity={0.7}
         >
           <Text style={{ fontSize: 24 }}>🚪</Text>
         </TouchableOpacity>
       </View>
+
+      <LogoutModal
+        visible={showLogoutModal}
+        onConfirm={handleLogout}
+        onCancel={() => setShowLogoutModal(false)}
+      />
 
       {/* Contagem Regressiva para Estudantes */}
       {isStudent && daysUntilExam !== null && (
