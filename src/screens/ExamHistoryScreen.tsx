@@ -143,7 +143,7 @@ export default function ExamHistoryScreen() {
                 </View>
                 <View style={[styles.scoreBadge, { backgroundColor: getScoreBg(result.score) }]}>
                   <Text style={[styles.scoreText, { color: getScoreColor(result.score) }]}>
-                    {result.score.toFixed(1)}%
+                    {(result.score || 0).toFixed(1)}%
                   </Text>
                 </View>
               </View>

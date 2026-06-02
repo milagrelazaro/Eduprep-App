@@ -213,14 +213,14 @@ export default function DashboardScreen() {
             {examResults.slice(0, 3).map((result: any) => (
               <View key={result.id} style={styles.resultRow}>
                 <View style={styles.resultIconBox}>
-                  <Text style={styles.resultScore}>{result.score}</Text>
+                  <Text style={styles.resultScore}>{(result.score || 0).toFixed(1)}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text variant="bodyMedium" style={{ fontWeight: '700', color: '#111827' }}>
                     {result.examName || 'Simulado'}
                   </Text>
                   <Text variant="labelSmall" style={{ color: '#9ca3af' }}>
-                    {new Date(result.date).toLocaleDateString('pt-PT')} • {result.correctAnswers}/{result.totalQuestions} acertos
+                    {new Date(result.date).toLocaleDateString('pt-PT')} • {result.correctAnswers || 0}/{result.totalQuestions || 0} acertos
                   </Text>
                 </View>
               </View>

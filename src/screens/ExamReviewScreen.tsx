@@ -121,14 +121,14 @@ export default function ExamReviewScreen() {
         <Card.Content style={{ alignItems: 'center', padding: 24 }}>
           <View style={[styles.scoreCircle, { backgroundColor: '#fff' }]}>
             <Text style={[styles.scoreValue, { color: getScoreColor(result.score) }]}>
-              {result.score.toFixed(1)}%
+              {(result.score || 0).toFixed(1)}%
             </Text>
           </View>
           <Text variant="headlineSmall" style={{ fontWeight: '800', marginTop: 16, marginBottom: 8 }}>
             {result.score >= 14 ? '🎉 Excelente!' : result.score >= 10 ? '👍 Bom Trabalho!' : '📚 Continue Estudando!'}
           </Text>
           <Text style={{ color: '#6b7280', textAlign: 'center' }}>
-            Você acertou {result.correctAnswers || 0} de {result.totalQuestions || 0} questões ({percentage.toFixed(0)}%)
+            Você acertou {result.correctAnswers || 0} de {result.totalQuestions || 0} questões ({(percentage || 0).toFixed(0)}%)
           </Text>
           <Text style={{ color: '#9ca3af', fontSize: 12, marginTop: 8 }}>
             {formatDate(result.date)}
