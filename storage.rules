@@ -1,0 +1,21 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Permitir leitura pública de todas as imagens
+    match /{allPaths=**} {
+      allow read: if true;
+    }
+    
+    // Permitir upload apenas para usuários autenticados
+    match /exams/{examId}/questions/{questionId} {
+      allow write: if request.auth != null;
+    }
+    
+    // Permitir upload de avatares apenas para o próprio usuário
+    match /avatars/{userId}/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
