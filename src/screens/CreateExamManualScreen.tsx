@@ -80,7 +80,30 @@ export default function CreateExamManualScreen() {
     setCurrentQuestion({
       ...currentQuestion,
       imageUri: undefined,
+      imageUrl: undefined,
     });
+  };
+
+  const extractGoogleDriveImageUrl = (url: string): string | null => {
+    if (!url || !url.trim()) return null;
+
+    // Patterns para links do Google Drive
+    const patterns = [
+      /\/d\/([a-zA-Z0-9_-]+)/,
+      /id=([a-zA-Z0-9_-]+)/,
+      /\/file\/d\/([a-zA-Z0-9_-]+)/,
+      /open\?id=([a-zA-Z0-9_-]+)/,
+      /([a-zA-Z0-9_-]{25,})/,
+    ];
+
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match && match[1]) {
+        return `https://lh3.googleusercontent.com/d/${match[1]}`;
+      }
+    }
+
+    return null;
   };
 
   const handleUpdateOption = (index: number, value: string) => {
@@ -127,6 +150,7 @@ export default function CreateExamManualScreen() {
       id: '',
       text: '',
       imageUri: undefined,
+      imageUrl: undefined,
       options: ['', '', '', ''],
       correctOption: 0,
       explanation: '',
@@ -208,10 +232,14 @@ export default function CreateExamManualScreen() {
 
       // Adicionar questões
       for (const question of questions) {
-        let imageUrl = undefined;
+        let imageUrl = question.imageUrl;
 
-        // Upload da imagem se existir
-        if (question.imageUri) {
+        // Se tiver link do Google Drive, usa diretamente
+        if (question.imageUrl) {
+          console.log(`Usando imagem do Google Drive: ${imageUrl}`);
+        }
+        // Se tiver imagem local, tenta fazer upload para Firebase Storage (fallback)
+        else if (question.imageUri) {
           try {
             imageUrl = await uploadImage(question.imageUri, examRef.id, question.id);
             console.log(`Imagem carregada: ${imageUrl}`);
@@ -349,6 +377,7 @@ export default function CreateExamManualScreen() {
                     id: '',
                     text: '',
                     imageUri: undefined,
+                    imageUrl: undefined,
                     options: ['', '', '', ''],
                     correctOption: 0,
                     explanation: '',
@@ -397,7 +426,7 @@ export default function CreateExamManualScreen() {
                     {question.text}
                   </Text>
                   
-                  {question.imageUri && (
+                  {(question.imageUri || question.imageUrl) && (
                     <View style={styles.questionImageBadge}>
                       <Text style={styles.questionImageBadgeText}>🖼️ Com imagem</Text>
                     </View>
@@ -464,10 +493,35 @@ export default function CreateExamManualScreen() {
                   Ideal para fórmulas matemáticas e expressões complexas
                 </Text>
 
-                {currentQuestion.imageUri ? (
+                <TextInput
+                  mode="outlined"
+                  label="Link do Google Drive"
+                  value={currentQuestion.imageUrl || ''}
+                  onChangeText={(text) => {
+                    const driveUrl = extractGoogleDriveImageUrl(text) || text;
+                    setCurrentQuestion({
+                      ...currentQuestion,
+                      imageUrl: text.trim() ? driveUrl : undefined,
+                      imageUri: text.trim() ? driveUrl : undefined,
+                    });
+                  }}
+                  placeholder="https://drive.google.com/file/d/..."
+                  style={styles.input}
+                />
+
+                <Text style={styles.driveHint}>
+                  📎 Cole o link de compartilhamento do Google Drive. A imagem deve estar pública.
+                </Text>
+
+                <TouchableOpacity style={styles.uploadButton} onPress={handlePickImage}>
+                  <Text style={styles.uploadIcon}>📷</Text>
+                  <Text style={styles.uploadText}>Ou selecione da galeria</Text>
+                </TouchableOpacity>
+
+                {(currentQuestion.imageUri || currentQuestion.imageUrl) && (
                   <View style={styles.imagePreviewContainer}>
                     <Image
-                      source={{ uri: currentQuestion.imageUri }}
+                      source={{ uri: currentQuestion.imageUri || currentQuestion.imageUrl }}
                       style={styles.imagePreview}
                       resizeMode="contain"
                     />
@@ -479,11 +533,6 @@ export default function CreateExamManualScreen() {
                       onPress={handleRemoveImage}
                     />
                   </View>
-                ) : (
-                  <TouchableOpacity style={styles.uploadButton} onPress={handlePickImage}>
-                    <Text style={styles.uploadIcon}>📷</Text>
-                    <Text style={styles.uploadText}>Adicionar Imagem</Text>
-                  </TouchableOpacity>
                 )}
               </View>
 
@@ -747,6 +796,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
     marginBottom: spacing.md,
+  },
+  driveHint: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
+    fontStyle: 'italic',
   },
   uploadButton: {
     borderWidth: 2,
