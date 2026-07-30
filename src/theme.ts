@@ -30,6 +30,14 @@ export const theme = {
     },
   },
   roundness: 16,
+  fonts: {
+    ...MD3LightTheme.fonts,
+    default: { fontFamily: 'sans-serif', fontWeight: '400' as const },
+    regular: { fontFamily: 'sans-serif', fontWeight: '400' as const },
+    medium: { fontFamily: 'sans-serif', fontWeight: '500' as const },
+    light: { fontFamily: 'sans-serif', fontWeight: '300' as const },
+    thin: { fontFamily: 'sans-serif', fontWeight: '100' as const },
+  },
 };
 
 export const colors = {

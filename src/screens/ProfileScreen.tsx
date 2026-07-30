@@ -10,6 +10,8 @@ import { MainTabParamList, RootStackParamList } from '../navigation/AppNavigator
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { colors, borderRadius, spacing, typography, shadows } from '../theme/colors';
+import * as ImagePicker from 'expo-image-picker';
 
 type StackNav = NativeStackNavigationProp<RootStackParamList>;
 type ProfileNavigationProp = CompositeNavigationProp<
@@ -32,18 +34,27 @@ const getMenuItems = (userRole: UserRole | undefined) => {
     return [];
   }
 
-  // Apenas para estudantes - sem botão Sair aqui
+  // Apenas para estudantes
   return [
     { label: 'Configuração Acadêmica', icon: 'school', color: '#10b981', screen: 'AcademicSetup' },
+    { label: 'Universidades Favoritas', icon: 'star', color: '#f59e0b', screen: 'FavoriteUniversities' },
+    { label: 'Ranking Nacional', icon: 'trophy', color: '#3b82f6', screen: 'Ranking' },
+    { label: 'Descontos e Bônus', icon: 'gift', color: '#f59e0b', screen: 'Discounts' },
+    { label: 'Subscrição Premium', icon: 'crown', color: '#fbbf24', screen: 'Subscription' },
+    { label: 'Segurança', icon: 'shield', color: '#7c3aed', screen: 'Security' },
+    { label: 'Melhorar Conteúdo', icon: 'flag', color: '#ef4444', screen: 'ReportIssue' },
+    { label: 'Suporte e Ajuda', icon: 'help-circle', color: '#8b5cf6', screen: 'Support' },
   ];
 };
 
 export default function ProfileScreen() {
   const navigation = useNavigation();
-  const { user, logout } = useAuthStore();
+  const { user, logout, updateUser } = useAuthStore();
   const [daysUntilExam, setDaysUntilExam] = useState<number | null>(null);
   const [examStats, setExamStats] = useState({ total: 0, average: 0 });
   const [loading, setLoading] = useState(true);
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
+  const [profileComplete, setProfileComplete] = useState(0);
 
   const calculateDaysUntilExam = async () => {
     try {
@@ -94,7 +105,44 @@ export default function ProfileScreen() {
   useEffect(() => {
     calculateDaysUntilExam();
     loadExamStats();
+    checkProfileCompletion();
   }, []);
+
+  const checkProfileCompletion = () => {
+    let completed = 0;
+    if (user?.name) completed++;
+    if (user?.email) completed++;
+    if (user?.intendedCourse) completed++;
+    if (user?.competingDisciplines && user.competingDisciplines.length > 0) completed++;
+    if (profilePhoto) completed++;
+    setProfileComplete(completed);
+  };
+
+  const handlePickImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permissão Negada', 'Precisamos de acesso à galeria para alterar a foto de perfil');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setProfilePhoto(result.assets[0].uri);
+        Alert.alert('Sucesso', 'Foto de perfil atualizada!');
+        checkProfileCompletion();
+      }
+    } catch (error) {
+      console.error('Erro ao selecionar imagem:', error);
+      Alert.alert('Erro', 'Não foi possível selecionar a imagem');
+    }
+  };
 
   // Recarregar estatísticas quando a tela ganhar foco
   useFocusEffect(
@@ -137,201 +185,223 @@ export default function ProfileScreen() {
   const menuItems = getMenuItems(user?.role);
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      {/* Profile Header */}
-      <Card style={styles.headerCard}>
-        <Card.Content style={styles.headerContent}>
-          <Image
-            source={{ uri: user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'U')}&background=4f46e5&color=fff` }}
-            style={styles.avatar}
-          />
-          <View style={{ flex: 1 }}>
-            <Text variant="titleLarge" style={{ fontWeight: '800', color: '#111827', marginBottom: 2 }}>{user?.name}</Text>
-            <Text variant="bodySmall" style={{ color: '#6b7280', marginBottom: 8 }}>{user?.email}</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <View style={styles.roleBadge}>
-                <Text style={{ fontSize: 9, fontWeight: '800', color: '#4f46e5', letterSpacing: 2 }}>{getRoleLabel(user?.role)}</Text>
-              </View>
-              <View style={[styles.roleBadge, { backgroundColor: '#ecfdf5' }]}>
-                <Text style={{ fontSize: 10 }}>✅</Text>
-                <Text style={{ fontSize: 9, fontWeight: '800', color: '#10b981', letterSpacing: 1 }}>VERIFICADA</Text>
-              </View>
+    <ScrollView style={[styles.screen, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
+      {/* Banner Completar Perfil */}
+      {profileComplete < 5 && (
+        <TouchableOpacity 
+          style={[styles.completeBanner, { backgroundColor: colors.warningLight }]}
+          onPress={() => navigation.navigate('AcademicSetup' as never)}
+        >
+          <View style={styles.completeBannerLeft}>
+            <Text style={styles.completeBannerEmoji}>⚠️</Text>
+            <View>
+              <Text style={[styles.completeBannerTitle, { color: colors.warning }]}>COMPLETAR PERFIL</Text>
+              <Text style={[styles.completeBannerText, { color: colors.textSecondary }]}>{profileComplete} de 5 concluídos</Text>
             </View>
           </View>
-        </Card.Content>
-      </Card>
+          <Text style={[styles.completeBannerArrow, { color: colors.warning }]}>›</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Header estilo Yango */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity onPress={handlePickImage}>{profilePhoto ? (<Image source={{ uri: profilePhoto }} style={styles.profilePhoto} />) : (<View style={[styles.profilePhoto, { backgroundColor: colors.secondary }]}><Text style={styles.profileInitial}>{user?.name?.charAt(0) || 'U'}</Text></View>)}<View style={[styles.cameraIcon, { backgroundColor: colors.primary }]}><Text style={styles.cameraEmoji}>📷</Text></View></TouchableOpacity>
+          <View style={styles.userInfo}>
+            <Text style={[styles.userName, { color: colors.textPrimary }]}>{user?.name || 'Utilizador'}</Text>
+            <Text style={[styles.userEmail, { color: colors.textSecondary }]}>{user?.email || 'email@exemplo.com'}</Text>
+            <View style={styles.badges}>
+              <View style={[styles.badge, { backgroundColor: colors.secondary }]}>
+                <Text style={[styles.badgeText, { color: colors.info }]}>{getRoleLabel(user?.role)}</Text>
+              </View>
+              {examStats.total > 0 && (
+                <View style={[styles.badge, { backgroundColor: examStats.average >= 70 ? colors.successLight : examStats.average >= 50 ? colors.warningLight : colors.errorLight }]}>
+                  <Text style={[styles.badgeText, { color: examStats.average >= 70 ? colors.success : examStats.average >= 50 ? colors.warning : colors.error }]}>
+                    ⭐ {examStats.average.toFixed(0)}%
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </View>
+      </View>
 
       {/* Stats */}
       {examStats.total > 0 ? (
-        <Card style={styles.statsCard}>
-          <Card.Content>
-            <View style={{ flexDirection: 'row', marginBottom: 12 }}>
-              <View style={[styles.statItem, { borderRightWidth: 1, borderRightColor: '#f3f4f6' }]}>
-                <Text style={{ color: '#9ca3af', fontSize: 12 }}>Simulados Feitos</Text>
-                <Text style={{ fontSize: 22, fontWeight: '800', color: '#111827' }}>{examStats.total}</Text>
+        <Card style={[styles.statsCard, { backgroundColor: colors.white, borderRadius: borderRadius.xl, ...shadows.small }]}>
+          <Card.Content style={styles.statsContent}>
+            <View style={styles.statsRow}>
+              <View style={[styles.statItem, { borderRightWidth: 1, borderRightColor: colors.borderLight }]}>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Simulados Feitos</Text>
+                <Text style={[styles.statValue, { color: colors.textPrimary }]}>{examStats.total}</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={{ color: '#9ca3af', fontSize: 12 }}>Média</Text>
-                <Text style={{ fontSize: 22, fontWeight: '800', color: '#111827' }}>{examStats.average.toFixed(1)}%</Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Média</Text>
+                <Text style={[styles.statValue, { color: colors.textPrimary }]}>{examStats.average.toFixed(1)}%</Text>
               </View>
             </View>
             <TouchableOpacity 
               onPress={() => navigation.navigate('ExamHistory' as never)}
-              style={{ 
-                backgroundColor: '#4f46e5', 
-                padding: 12, 
-                borderRadius: 8, 
-                alignItems: 'center' 
-              }}
+              style={[styles.historyButton, { backgroundColor: colors.primary }]}
             >
-              <Text style={{ color: '#fff', fontWeight: '700' }}>📋 Ver Histórico Completo</Text>
+              <Text style={styles.historyButtonText}>📋 Ver Histórico Completo</Text>
             </TouchableOpacity>
           </Card.Content>
         </Card>
       ) : (
-        <Card style={styles.motivationCard}>
-          <Card.Content style={{ alignItems: 'center', padding: 20 }}>
-            <Text style={{ fontSize: 32, marginBottom: 8 }}>🎯</Text>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 4, textAlign: 'center' }}>
+        <Card style={[styles.motivationCard, { backgroundColor: colors.white, borderRadius: borderRadius.xl, ...shadows.small }]}>
+          <Card.Content style={styles.motivationContent}>
+            <Text style={styles.motivationEmoji}>🎯</Text>
+            <Text style={[styles.motivationTitle, { color: colors.textPrimary }]}>
               Comece sua jornada!
             </Text>
-            <Text style={{ fontSize: 14, color: '#6b7280', textAlign: 'center' }}>
+            <Text style={[styles.motivationText, { color: colors.textSecondary }]}>
               Faça seu primeiro simulado para ver seu progresso aqui.
             </Text>
           </Card.Content>
         </Card>
       )}
 
-      {/* Contagem Regressiva para o Exame */}
-      {daysUntilExam !== null && (
-        <Card style={styles.countdownCard}>
-          <Card.Content style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <View style={styles.countdownIcon}>
-                <Text style={{ fontSize: 28 }}>⏰</Text>
-              </View>
-              <View>
-                <Text variant="labelSmall" style={{ color: '#6b7280', marginBottom: 2 }}>Faltam para o exame</Text>
-                <Text variant="headlineMedium" style={{ fontWeight: '800', color: '#111827' }}>
-                  {daysUntilExam} {daysUntilExam === 1 ? 'dia' : 'dias'}
-                </Text>
-              </View>
-            </View>
-            <TouchableOpacity onPress={() => navigation.navigate('AcademicSetup' as never)}>
-              <Text style={{ color: '#4f46e5', fontWeight: '600', fontSize: 14 }}>Alterar</Text>
-            </TouchableOpacity>
+      {/* Menu */}
+      {menuItems.length > 0 && (
+        <Card style={[styles.menuCard, { backgroundColor: colors.white, borderRadius: borderRadius.xl, ...shadows.small }]}>
+          <Card.Content style={styles.menuContent}>
+            {menuItems.map((item, i) => (
+              <TouchableOpacity 
+                key={i} 
+                style={[styles.menuItem, i < menuItems.length - 1 && styles.menuItemBorder]}
+                onPress={() => navigation.navigate(item.screen as never)}
+              >
+                <View style={styles.menuItemLeft}>
+                  <View style={[styles.menuIcon, { backgroundColor: colors.grayLight }]}>
+                    <Text style={styles.menuIconEmoji}>{item.icon === 'school' ? '🎓' : item.icon === 'star' ? '⭐' : item.icon === 'trophy' ? '🏆' : item.icon === 'gift' ? '🎁' : item.icon === 'crown' ? '👑' : item.icon === 'shield' ? '🛡️' : item.icon === 'flag' ? '🚩' : item.icon === 'help-circle' ? '❓' : '⚙️'}</Text>
+                  </View>
+                  <View>
+                    <Text style={[styles.menuItemTitle, { color: colors.textPrimary }]}>{item.label}</Text>
+                  </View>
+                </View>
+                <Text style={[styles.menuArrow, { color: colors.textTertiary }]}>›</Text>
+              </TouchableOpacity>
+            ))}
           </Card.Content>
         </Card>
       )}
 
-      {/* Settings Menu */}
-      <Card style={styles.menuCard}>
-        <Card.Content style={{ padding: 0 }}>
-          {menuItems.map((item, i) => (
-            <TouchableOpacity 
-              key={i} 
-              style={[styles.menuItem, i < menuItems.length - 1 && { borderBottomWidth: 1, borderBottomColor: '#f9fafb' }]}
-              onPress={() => navigation.navigate(item.screen as never)}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-                <View style={[styles.menuIcon, { backgroundColor: '#f9fafb' }]}>
-                  <Text style={{ fontSize: 20 }}>{item.icon === 'school' ? '🎓' : '⚙️'}</Text>
-                </View>
-                <Text style={{ fontWeight: '700', color: '#1f2937', fontSize: 15 }}>{item.label}</Text>
-              </View>
-              <Text style={{ fontSize: 20, color: '#d1d5db' }}>›</Text>
-            </TouchableOpacity>
-          ))}
-        </Card.Content>
-      </Card>
-
-      {/* Botão Sair separado com destaque */}
-      <TouchableOpacity 
-        onPress={() => {
-          console.log('Botão Sair clicado');
-          handleLogout();
-        }} 
-        style={styles.logoutButton}
-        activeOpacity={0.7}
+      {/* Logout */}
+      <Button
+        mode="outlined"
+        onPress={handleLogout}
+        style={{ marginTop: spacing.md, marginBottom: 32, borderColor: colors.error }}
+        labelStyle={{ color: colors.error, fontWeight: '600' }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-          <Text style={{ fontSize: 24 }}>🚪</Text>
-          <Text style={{ fontWeight: '700', color: '#fff', fontSize: 16 }}>Sair da Conta</Text>
-        </View>
-      </TouchableOpacity>
+        🚪 Terminar Sessão
+      </Button>
 
+      {/* Contagem Regressiva para o Exame */}
+      {daysUntilExam !== null && (
+        <Card style={[styles.countdownCard, { backgroundColor: colors.white, borderRadius: borderRadius.xl, ...shadows.small }]}>
+          <Card.Content style={styles.countdownContent}>
+            <View style={styles.countdownLeft}>
+              <View style={[styles.countdownIcon, { backgroundColor: colors.warningLight }]}>
+                <Text style={{ fontSize: 28 }}>⏰</Text>
+              </View>
+              <View>
+                <Text style={[styles.countdownLabel, { color: colors.textSecondary }]}>Faltam para o exame</Text>
+                <Text style={[styles.countdownValue, { color: colors.textPrimary }]}>
+                  {daysUntilExam} {daysUntilExam === 1 ? 'dia' : 'dias'}
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity onPress={() => navigation.navigate('AcademicSetup')}>
+              <Text style={[styles.countdownAction, { color: colors.primary }]}>Configurar</Text>
+            </TouchableOpacity>
+          </Card.Content>
+        </Card>
+      )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#f9fafb' },
-  content: { padding: 16, paddingBottom: 32 },
-  headerCard: { backgroundColor: '#fff', borderRadius: 20, elevation: 0, borderWidth: 1, borderColor: '#f3f4f6', marginBottom: 16 },
-  headerContent: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  avatar: { width: 72, height: 72, borderRadius: 20, backgroundColor: '#f3f4f6' },
-  roleBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#eef2ff',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    gap: 2,
+  screen: { flex: 1, backgroundColor: colors.background },
+  content: { padding: spacing.lg, paddingBottom: 32 },
+  
+  // Banner Completar Perfil
+  completeBanner: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    padding: spacing.md, 
+    borderRadius: borderRadius.md, 
+    marginBottom: spacing.lg 
   },
-  roleSwitchCard: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    elevation: 0,
-    borderWidth: 1,
-    borderColor: '#f3f4f6',
-    marginBottom: 16,
-  },
-  roleSwitchIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: '#eef2ff',
-    alignItems: 'center',
+  completeBannerLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  completeBannerEmoji: { fontSize: 24 },
+  completeBannerTitle: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
+  completeBannerText: { fontSize: 11, fontWeight: '400' },
+  completeBannerArrow: { fontSize: 24, fontWeight: '300' },
+  
+  // Header estilo Yango
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xl },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  profilePhoto: { width: 60, height: 60, borderRadius: borderRadius.round, alignItems: 'center', justifyContent: 'center' },
+  profileInitial: { fontSize: 24, fontWeight: '700', color: colors.info },
+  cameraIcon: { 
+    position: 'absolute', 
+    bottom: 0, 
+    right: 0, 
+    width: 24, 
+    height: 24, 
+    borderRadius: 12, 
+    alignItems: 'center', 
     justifyContent: 'center',
-  },
-  modal: {
-    backgroundColor: '#fff',
-    margin: 20,
-    borderRadius: 24,
-    padding: 24,
-  },
-  roleOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 16,
-    borderRadius: 16,
     borderWidth: 2,
-    borderColor: '#f3f4f6',
-    marginBottom: 12,
+    borderColor: colors.white
   },
-  roleOptionActive: {
-    borderColor: '#10b981',
-    backgroundColor: '#ecfdf5',
-  },
-  roleOptionIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  walletCard: { backgroundColor: '#4f46e5', borderRadius: 20, elevation: 4, marginBottom: 16 },
-  walletBtnOutline: { flex: 1, paddingVertical: 12, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 12, alignItems: 'center' },
-  walletBtnSolid: { flex: 1, paddingVertical: 12, backgroundColor: '#fff', borderRadius: 12, alignItems: 'center' },
-  statsCard: { backgroundColor: '#fff', borderRadius: 20, elevation: 0, borderWidth: 1, borderColor: '#f3f4f6', marginBottom: 16 },
-  statItem: { flex: 1, alignItems: 'center', paddingVertical: 8 },
-  motivationCard: { backgroundColor: '#eef2ff', borderRadius: 20, elevation: 0, borderWidth: 1, borderColor: '#dbeafe', marginBottom: 16 },
-  countdownCard: { backgroundColor: '#fef3c7', borderRadius: 20, elevation: 0, borderWidth: 1, borderColor: '#fde68a', marginBottom: 16 },
-  countdownIcon: { width: 48, height: 48, borderRadius: 12, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
-  menuCard: { backgroundColor: '#fff', borderRadius: 20, elevation: 0, borderWidth: 1, borderColor: '#f3f4f6' },
-  menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 },
-  menuIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  logoutButton: { backgroundColor: '#ef4444', borderRadius: 16, padding: 16, marginTop: 8, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4 },
+  cameraEmoji: { fontSize: 12 },
+  userInfo: { flex: 1 },
+  userName: { fontSize: 20, fontWeight: '700', marginBottom: 4 },
+  userEmail: { fontSize: 13, fontWeight: '400', marginBottom: 8 },
+  badges: { flexDirection: 'row', gap: spacing.sm },
+  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: borderRadius.md },
+  badgeText: { fontSize: 10, fontWeight: '600' },
+  logoutButton: { width: 48, height: 48, borderRadius: borderRadius.md, alignItems: 'center', justifyContent: 'center', minWidth: 48, minHeight: 48 },
+  logoutIcon: { fontSize: 22 },
+  
+  // Stats Card
+  statsCard: { marginBottom: spacing.lg },
+  statsContent: { padding: spacing.lg },
+  statsRow: { flexDirection: 'row', marginBottom: spacing.lg },
+  statItem: { flex: 1, alignItems: 'center' },
+  statLabel: { fontSize: 12, fontWeight: '400', marginBottom: 4 },
+  statValue: { fontSize: 24, fontWeight: '700' },
+  historyButton: { paddingVertical: spacing.md, paddingHorizontal: spacing.lg, borderRadius: borderRadius.md, alignItems: 'center' },
+  historyButtonText: { color: colors.white, fontWeight: '600', fontSize: 14 },
+  
+  // Motivation Card
+  motivationCard: { marginBottom: spacing.lg },
+  motivationContent: { alignItems: 'center', padding: spacing.xl },
+  motivationEmoji: { fontSize: 40, marginBottom: spacing.md },
+  motivationTitle: { fontSize: 16, fontWeight: '700', marginBottom: spacing.sm, textAlign: 'center' },
+  motivationText: { fontSize: 14, textAlign: 'center' },
+  
+  // Menu Card
+  menuCard: { marginBottom: spacing.lg, elevation: 0, borderWidth: 1, borderColor: colors.borderLight },
+  menuContent: { padding: 0 },
+  menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.md, paddingHorizontal: spacing.lg },
+  menuItemBorder: { borderBottomWidth: 1, borderBottomColor: colors.borderLight },
+  menuItemLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, flex: 1 },
+  menuIcon: { width: 40, height: 40, borderRadius: borderRadius.md, alignItems: 'center', justifyContent: 'center' },
+  menuIconEmoji: { fontSize: 20 },
+  menuItemTitle: { fontSize: 16, fontWeight: '600' },
+  menuArrow: { fontSize: 24, fontWeight: '300' },
+  
+  // Countdown Card
+  countdownCard: { marginBottom: spacing.lg },
+  countdownContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  countdownLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  countdownIcon: { width: 48, height: 48, borderRadius: borderRadius.md, alignItems: 'center', justifyContent: 'center' },
+  countdownLabel: { fontSize: 12, fontWeight: '400', marginBottom: 2 },
+  countdownValue: { fontSize: 20, fontWeight: '700' },
+  countdownAction: { fontSize: 14, fontWeight: '600' },
 });

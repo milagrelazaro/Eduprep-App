@@ -1,0 +1,145 @@
+import { MD3LightTheme as DefaultTheme } from 'react-native-paper';
+import { colors } from './colors';
+
+export const theme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: colors.primary,
+    secondary: colors.secondary,
+    background: colors.background,
+    surface: colors.white,
+    error: colors.error,
+    onSurface: colors.textPrimary,
+    onBackground: colors.textPrimary,
+  },
+  fonts: {
+    ...DefaultTheme.fonts,
+    // Fontes sans-serif lite (sem serifa)
+    default: {
+      fontFamily: 'sans-serif',
+      fontWeight: '400' as const,
+    },
+    regular: {
+      fontFamily: 'sans-serif',
+      fontWeight: '400' as const,
+    },
+    medium: {
+      fontFamily: 'sans-serif',
+      fontWeight: '500' as const,
+    },
+    light: {
+      fontFamily: 'sans-serif',
+      fontWeight: '300' as const,
+    },
+    thin: {
+      fontFamily: 'sans-serif',
+      fontWeight: '100' as const,
+    },
+    labelLarge: {
+      fontFamily: 'sans-serif',
+      fontSize: 14,
+      fontWeight: '500' as const,
+      letterSpacing: 0.1,
+      lineHeight: 20,
+    },
+    labelMedium: {
+      fontFamily: 'sans-serif',
+      fontSize: 12,
+      fontWeight: '500' as const,
+      letterSpacing: 0.5,
+      lineHeight: 16,
+    },
+    labelSmall: {
+      fontFamily: 'sans-serif',
+      fontSize: 11,
+      fontWeight: '500' as const,
+      letterSpacing: 0.5,
+      lineHeight: 16,
+    },
+    bodyLarge: {
+      fontFamily: 'sans-serif',
+      fontSize: 16,
+      fontWeight: '400' as const,
+      letterSpacing: 0.5,
+      lineHeight: 24,
+    },
+    bodyMedium: {
+      fontFamily: 'sans-serif',
+      fontSize: 14,
+      fontWeight: '400' as const,
+      letterSpacing: 0.25,
+      lineHeight: 20,
+    },
+    bodySmall: {
+      fontFamily: 'sans-serif',
+      fontSize: 12,
+      fontWeight: '400' as const,
+      letterSpacing: 0.4,
+      lineHeight: 16,
+    },
+    headlineLarge: {
+      fontFamily: 'sans-serif',
+      fontSize: 32,
+      fontWeight: '400' as const,
+      letterSpacing: 0,
+      lineHeight: 40,
+    },
+    headlineMedium: {
+      fontFamily: 'sans-serif',
+      fontSize: 28,
+      fontWeight: '400' as const,
+      letterSpacing: 0,
+      lineHeight: 36,
+    },
+    headlineSmall: {
+      fontFamily: 'sans-serif',
+      fontSize: 24,
+      fontWeight: '400' as const,
+      letterSpacing: 0,
+      lineHeight: 32,
+    },
+    titleLarge: {
+      fontFamily: 'sans-serif',
+      fontSize: 22,
+      fontWeight: '400' as const,
+      letterSpacing: 0,
+      lineHeight: 28,
+    },
+    titleMedium: {
+      fontFamily: 'sans-serif',
+      fontSize: 16,
+      fontWeight: '500' as const,
+      letterSpacing: 0.15,
+      lineHeight: 24,
+    },
+    titleSmall: {
+      fontFamily: 'sans-serif',
+      fontSize: 14,
+      fontWeight: '500' as const,
+      letterSpacing: 0.1,
+      lineHeight: 20,
+    },
+    displayLarge: {
+      fontFamily: 'sans-serif',
+      fontSize: 57,
+      fontWeight: '400' as const,
+      letterSpacing: 0,
+      lineHeight: 64,
+    },
+    displayMedium: {
+      fontFamily: 'sans-serif',
+      fontSize: 45,
+      fontWeight: '400' as const,
+      letterSpacing: 0,
+      lineHeight: 52,
+    },
+    displaySmall: {
+      fontFamily: 'sans-serif',
+      fontSize: 36,
+      fontWeight: '400' as const,
+      letterSpacing: 0,
+      lineHeight: 44,
+    },
+  },
+};

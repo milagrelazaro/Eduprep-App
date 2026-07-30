@@ -1,0 +1,36 @@
+# MODELO DE IMPORTAÇÃO DE EXAMES - SIMULAPASS
+# ============================================
+# Instruções:
+# 1. Preencha este arquivo com os dados dos exames
+# 2. Cada linha representa uma questão
+# 3. Os campos do exame (instituição, disciplina, etc.) se repetem para cada questão
+# 4. Não altere a linha de cabeçalho
+# 5. Salve como CSV (UTF-8) antes de importar
+
+# CAMPOS DO EXAME (se repetem para cada questão):
+# institution - Nome da instituição (ex: UEM, UP, UCM, ISCTEM, Unilúrio, Universidade Zambeze)
+# subject - Disciplina (ex: Matemática, Física, Química, Biologia, Português, História, Geografia, Inglês)
+# year - Ano do exame (ex: 2023, 2024)
+# duration - Duração em minutos (ex: 60, 90, 120)
+# status - Status do exame (approved, pending, rejected)
+# topic - Tópico da questão (opcional, ex: Álgebra, Mecânica, Gramática)
+
+# CAMPOS DA QUESTÃO:
+# question_text - Texto da pergunta
+# option_a - Opção A
+# option_b - Opção B
+# option_c - Opção C
+# option_d - Opção D
+# correct_option - Índice da resposta correta (0=A, 1=B, 2=C, 3=D)
+# explanation - Explicação da resposta (opcional)
+# correct_feedback - Feedback para resposta correta (opcional)
+# incorrect_feedback - Feedback para resposta incorreta (opcional)
+# learn_more_url - URL para mais informações (opcional, ex: YouTube)
+
+institution,subject,year,duration,status,topic,question_text,option_a,option_b,option_c,option_d,correct_option,explanation,correct_feedback,incorrect_feedback,learn_more_url
+UEM,Matemática,2024,90,approved,Álgebra,Qual é o valor de x na equação 2x + 5 = 15?,5,10,7.5,3,0,Para resolver: 2x + 5 = 15 → 2x = 10 → x = 5,Correto! Você isolou a variável corretamente.,Incorreto. Lembre-se de isolar x subtraindo 5 de ambos os lados.,
+UEM,Matemática,2024,90,approved,Álgebra,Qual é a raiz quadrada de 144?,10,12,14,16,1,12 × 12 = 144,Excelente! Você conhece as raízes quadradas.,Incorreto. 12 × 12 = 144.,
+UEM,Matemática,2024,90,approved,Geometria,Qual é a área de um quadrado com lado de 5cm?,10cm²,15cm²,20cm²,25cm²,3,Área = lado × lado = 5 × 5 = 25cm²,Perfeito! Fórmula da área aplicada corretamente.,Incorreto. A área do quadrado é lado ao quadrado.,
+UEM,Física,2024,90,approved,Mecânica,Qual é a fórmula da força?,F = m × a,F = m × v,F = m × g,F = p × v,0,Segunda Lei de Newton: Força = massa × aceleração,Correto! Você domina as leis de Newton.,Incorreto. Lembre-se da Segunda Lei de Newton.,
+UEM,Física,2024,90,approved,Mecânica,Qual é a unidade de força no SI?,Newton,Joule,Watt,Pascal,0,Newton (N) é a unidade de força no Sistema Internacional,Excelente! Você conhece as unidades do SI.,Incorreto. A unidade de força é Newton.,
+UEM,Português,2024,90,approved,Gramática,Qual é a classe gramatical da palavra "felizmente"?,Adjetivo,Advérbio,Substantivo,Verbo,1,Sufixo -mente indica advérbio de modo,Correto! Você identificou o advérbio.,Incorreto. Palavras terminadas em -mente são geralmente advérbios.,

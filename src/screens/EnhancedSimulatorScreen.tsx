@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Linking, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Linking, Alert, Image } from 'react-native';
 import { Text, Card, Button, Chip, ProgressBar } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -9,18 +9,11 @@ import { examService, examResultService } from '../services/firebaseService';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { canAccessFullExam } from '../utils/premiumCheck';
+import { colors, borderRadius, spacing, typography, shadows } from '../theme/colors';
 
-const INSTITUTIONS = ['UEM', 'UP', 'UCM', 'ISCTEM', 'Unilúrio', 'Universidade Zambeze'];
-const SUBJECTS = ['Matemática', 'Física', 'Química', 'Biologia', 'Português', 'História', 'Geografia', 'Inglês'];
-const TOPICS = {
-  'Matemática': ['Álgebra', 'Geometria', 'Trigonometria', 'Cálculo', 'Estatística'],
-  'Física': ['Mecânica', 'Termodinâmica', 'Eletromagnetismo', 'Óptica', 'Ondas'],
-  'Química': ['Química Orgânica', 'Química Inorgânica', 'Físico-Química', 'Estequiometria'],
-  'Biologia': ['Citologia', 'Genética', 'Ecologia', 'Evolução', 'Anatomia'],
-  'Português': ['Gramática', 'Literatura', 'Interpretação de Texto', 'Redação'],
-};
-
-// Questions will be loaded from selected exam
+// Institutions, subjects and topics will be dynamically loaded from Firebase exams
+const FALLBACK_INSTITUTIONS = ['UEM', 'UP', 'UCM', 'ISCTEM', 'Unilúrio', 'Universidade Zambeze'];
+const FALLBACK_SUBJECTS = ['Matemática', 'Física', 'Química', 'Biologia', 'Português', 'História', 'Geografia', 'Inglês'];
 
 export default function EnhancedSimulatorScreen() {
   const navigation = useNavigation();
@@ -36,6 +29,10 @@ export default function EnhancedSimulatorScreen() {
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedTopic, setSelectedTopic] = useState('');
   const [isTimed, setIsTimed] = useState(true);
+  const [availableInstitutions, setAvailableInstitutions] = useState<string[]>(FALLBACK_INSTITUTIONS);
+  const [availableSubjects, setAvailableSubjects] = useState<string[]>(FALLBACK_SUBJECTS);
+  const [availableTopics, setAvailableTopics] = useState<string[]>([]);
+  const [filterSubject, setFilterSubject] = useState('');
 
   useEffect(() => {
     loadExams();
@@ -48,15 +45,14 @@ export default function EnhancedSimulatorScreen() {
       // Filtrar disciplinas baseado na configuração acadêmica do usuário
       const userSubjects = user?.competingDisciplines || [];
       
-      // Buscar exames aprovados do Firestore
+      // Buscar TODOS os exames do Firestore (inclui pending e approved)
       const examsQuery = query(
-        collection(db, 'exams'),
-        where('status', '==', 'approved')
+        collection(db, 'exams')
       );
       const examsSnapshot = await getDocs(examsQuery);
       
       if (examsSnapshot.empty) {
-        console.log('Nenhum exame aprovado encontrado');
+        console.log('Nenhum exame encontrado');
         setAvailableExams([]);
         setLoading(false);
         return;
@@ -89,7 +85,29 @@ export default function EnhancedSimulatorScreen() {
       let examsWithValidQuestions = examsWithQuestions.filter(
         (exam: any) => exam && exam.questions && exam.questions.length > 0
       );
-      
+
+      // Extrair instituições, disciplinas e tópicos dinamicamente dos exames
+      const institutionsSet = new Set<string>();
+      const subjectsSet = new Set<string>();
+      const topicsSet = new Set<string>();
+      examsWithValidQuestions.forEach((exam: any) => {
+        if (exam.institution) institutionsSet.add(exam.institution);
+        if (exam.subject) subjectsSet.add(exam.subject);
+        if (exam.questions) {
+          exam.questions.forEach((q: any) => {
+            if (q.topic) topicsSet.add(q.topic);
+          });
+        }
+      });
+
+      const dynamicInstitutions = Array.from(institutionsSet).sort();
+      const dynamicSubjects = Array.from(subjectsSet).sort();
+      const dynamicTopics = Array.from(topicsSet).sort();
+
+      if (dynamicInstitutions.length > 0) setAvailableInstitutions(dynamicInstitutions);
+      if (dynamicSubjects.length > 0) setAvailableSubjects(dynamicSubjects);
+      setAvailableTopics(dynamicTopics);
+
       // Filtrar por disciplinas do usuário se configurado
       if (userSubjects.length > 0) {
         examsWithValidQuestions = examsWithValidQuestions.filter(
@@ -111,8 +129,7 @@ export default function EnhancedSimulatorScreen() {
         const saved = await AsyncStorage.getItem('eduprep_exams');
         if (saved) {
           const exams = JSON.parse(saved);
-          const approved = exams.filter((e: any) => e.status === 'approved');
-          setAvailableExams(approved);
+          setAvailableExams(exams);
         }
       } catch (cacheError) {
         console.error('Error loading from cache:', cacheError);
@@ -148,58 +165,17 @@ export default function EnhancedSimulatorScreen() {
     return () => clearInterval(interval);
   }, [timerActive, timeLeft]);
 
-  const startExam = () => {
-    if (!selectedSubject) {
-      Alert.alert('Erro', 'Por favor, selecione uma disciplina.');
+  const startExamById = (exam: any) => {
+    if (!exam || !exam.questions || exam.questions.length === 0) {
+      Alert.alert('Erro', 'Este exame não tem questões disponíveis.');
       return;
     }
 
-    // Find matching exam
-    let matchingExam = availableExams.find((exam: any) => {
-      const matchesInstitution = !selectedInstitution || exam.institution === selectedInstitution;
-      const matchesSubject = exam.subject === selectedSubject;
-      return matchesInstitution && matchesSubject;
-    });
-
-    if (!matchingExam) {
-      Alert.alert('Aviso', 'Nenhum exame encontrado para esta combinação. Usando exame genérico.');
-      matchingExam = availableExams.find((e: any) => e.subject === selectedSubject) || availableExams[0];
-    }
-
-    if (!matchingExam || !matchingExam.questions || matchingExam.questions.length === 0) {
-      Alert.alert('Erro', 'Nenhum exame disponível. Por favor, crie exames primeiro.');
-      return;
-    }
-
-    setCurrentExam(matchingExam);
+    setCurrentExam(exam);
+    setSelectedSubject(exam.subject || '');
+    setSelectedInstitution(exam.institution || '');
     
-    // Filter questions by topic if selected
-    let questions = matchingExam.questions;
-    if (selectedTopic) {
-      questions = questions.filter((q: any) => q.topic === selectedTopic);
-    }
-    
-    if (questions.length === 0) {
-      Alert.alert('Erro', 'Nenhuma questão encontrada para este tema.');
-      return;
-    }
-
-    // 🔒 LIMITAR A 10 PERGUNTAS NO SIMULADOR
-    const MAX_QUESTIONS_LIMIT = 10;
-    const totalQuestions = questions.length;
-    
-    if (totalQuestions > MAX_QUESTIONS_LIMIT) {
-      // Selecionar 10 questões aleatórias para o simulador
-      const shuffled = [...questions].sort(() => Math.random() - 0.5);
-      questions = shuffled.slice(0, MAX_QUESTIONS_LIMIT);
-      
-      Alert.alert(
-        '🎓 Simulador Limitado',
-        `Este exame tem ${totalQuestions} questões.\n\n✨ O simulador está configurado para mostrar no máximo ${MAX_QUESTIONS_LIMIT} questões por sessão.`,
-        [{ text: 'Continuar', style: 'default' }]
-      );
-    }
-
+    const questions = exam.questions;
     setExamQuestions(questions);
     setMode('exam');
     setCurrentQuestionIndex(0);
@@ -207,10 +183,11 @@ export default function EnhancedSimulatorScreen() {
     setSelectedAnswer(null);
     setShowFeedback(false);
     
-    if (isTimed) {
-      setTimeLeft(questions.length * 120); // 2 min per question
+    if (isTimed && exam.duration) {
+      setTimeLeft(exam.duration * 60);
       setTimerActive(true);
     }
+    console.log(`Simulador iniciado: ${exam.institution} - ${exam.subject} (${exam.year}), ${questions.length} questões, duração: ${exam.duration}min`);
   };
 
   const handleSelectAnswer = (optionIndex: number) => {
@@ -236,12 +213,29 @@ export default function EnhancedSimulatorScreen() {
     }
   };
 
+  const resetSimulator = () => {
+    setMode('setup');
+    setSelectedInstitution('');
+    setSelectedSubject('');
+    setSelectedTopic('');
+    setFilterSubject('');
+    setCurrentQuestionIndex(0);
+    setAnswers({});
+    setSelectedAnswer(null);
+    setShowFeedback(false);
+    setTimeLeft(3600);
+    setTimerActive(false);
+    setExamQuestions([]);
+    setCurrentExam(null);
+  };
+
   const finishExam = async () => {
     setTimerActive(false);
     
     const correctCount = examQuestions.filter((q: any) => answers[q.id] === q.correctOption).length;
     const score = Math.round((correctCount / examQuestions.length) * 20);
-    const timeSpent = isTimed ? (examQuestions.length * 120 - timeLeft) : 0;
+    const totalTime = (currentExam?.duration || 90) * 60;
+    const timeSpent = isTimed ? (totalTime - timeLeft) : 0;
     
     const result = {
       id: Date.now().toString(),
@@ -270,6 +264,8 @@ export default function EnhancedSimulatorScreen() {
       // Salvar no Firestore (sempre salvar, mesmo sem user ou examId)
       const savedResult = await examResultService.saveExamResult({
         userId: user?.id || 'guest',
+        userName: user?.name || 'Usuário Anônimo',
+        userUniversity: user?.intendedCourse || selectedInstitution || 'N/A',
         examId: currentExam?.id || 'exam-' + Date.now(),
         examName: `${selectedSubject} - ${selectedInstitution || 'Geral'}`,
         subject: selectedSubject,
@@ -305,182 +301,155 @@ export default function EnhancedSimulatorScreen() {
     Linking.openURL(url);
   };
 
-  const resetSimulator = () => {
-    setMode('setup');
-    setSelectedInstitution('');
-    setSelectedSubject('');
-    setSelectedTopic('');
-    setCurrentQuestionIndex(0);
-    setAnswers({});
-    setSelectedAnswer(null);
-    setShowFeedback(false);
-    setTimeLeft(3600);
-    setTimerActive(false);
-    setExamQuestions([]);
-    setCurrentExam(null);
-  };
-
-  // SETUP MODE
+  // SETUP MODE - Lista de exames reais
   if (mode === 'setup') {
-    const isReadyToStart = selectedSubject !== '';
-    const setupProgress = [
-      { label: 'Universidade', completed: selectedInstitution !== '', optional: true },
-      { label: 'Disciplina', completed: selectedSubject !== '', optional: false },
-      { label: 'Tópico', completed: selectedTopic !== '', optional: true },
-    ];
+    // Filtrar exames por disciplina (filter) e por config acadêmica do usuário
+    const userSubjects = user?.competingDisciplines || [];
+    let filteredExams = availableExams;
+
+    // Se usuário tem config acadêmica, mostrar apenas exames dessas disciplinas
+    if (userSubjects.length > 0) {
+      const matchedSubjects = userSubjects.filter((s: string) => availableSubjects.includes(s));
+      if (matchedSubjects.length > 0) {
+        filteredExams = filteredExams.filter((e: any) => matchedSubjects.includes(e.subject));
+      }
+    }
+
+    // Aplicar filtro de disciplina selecionado
+    if (filterSubject) {
+      filteredExams = filteredExams.filter((e: any) => e.subject === filterSubject);
+    }
+
+    // Disciplinas disponíveis para filtro (apenas as que têm exames)
+    const subjectsForFilter = userSubjects.length > 0
+      ? userSubjects.filter((s: string) => availableSubjects.includes(s))
+      : availableSubjects;
 
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <ScrollView contentContainerStyle={styles.content}>
+          {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-              <Text style={{ fontSize: 24 }}>←</Text>
+              <Text style={styles.backIcon}>←</Text>
             </TouchableOpacity>
-            <Text variant="headlineSmall" style={styles.title}>Simulador de Exames</Text>
+            <View style={styles.headerContent}>
+              <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Simulador de Exames</Text>
+              <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+                {filteredExams.length} exame{filteredExams.length !== 1 ? 's' : ''} disponíve{filteredExams.length !== 1 ? 'is' : 'l'}
+              </Text>
+            </View>
           </View>
 
-          {/* Progresso de Configuração */}
-          <Card style={styles.progressCard}>
-            <Card.Content>
-              <Text variant="titleMedium" style={styles.sectionTitle}>📋 Configuração</Text>
-              <View style={styles.progressItems}>
-                {setupProgress.map((item, index) => (
-                  <View key={index} style={styles.progressItem}>
-                    <View style={[styles.progressIcon, { backgroundColor: item.completed ? '#10b981' : '#e5e7eb' }]}>
-                      <Text style={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}>
-                        {item.completed ? '✓' : index + 1}
-                      </Text>
-                    </View>
-                    <Text style={[styles.progressLabel, { color: item.completed ? '#10b981' : '#6b7280' }]}>
-                      {item.label} {item.optional && '(opcional)'}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </Card.Content>
-          </Card>
-
-          <Card style={styles.card}>
-            <Card.Content>
-              <Text variant="titleMedium" style={styles.sectionTitle}>🎓 Universidade</Text>
-              <View style={styles.chipContainer}>
-                {INSTITUTIONS.map(inst => (
-                  <Chip
-                    key={inst}
-                    selected={selectedInstitution === inst}
-                    onPress={() => setSelectedInstitution(inst)}
-                    style={styles.chip}
-                  >
-                    {inst}
-                  </Chip>
-                ))}
-              </View>
-            </Card.Content>
-          </Card>
-          <Card style={styles.card}>
-            <Card.Content>
-              <Text variant="titleMedium" style={styles.sectionTitle}>📚 Disciplina</Text>
-              {user?.competingDisciplines && user.competingDisciplines.length > 0 ? (
-                <>
-                  <Text variant="bodySmall" style={{ color: '#6b7280', marginBottom: 12 }}>
-                    Baseado na sua configuração acadêmica
-                  </Text>
-                  <View style={styles.chipContainer}>
-                    {user.competingDisciplines.map((subj: string) => (
-                      <Chip
-                        key={subj}
-                        selected={selectedSubject === subj}
-                        onPress={() => {
-                          setSelectedSubject(subj);
-                          setSelectedTopic('');
-                        }}
-                        style={styles.chip}
-                      >
-                        {subj}
-                      </Chip>
-                    ))}
-                  </View>
-                </>
-              ) : (
-                <>
-                  <Text variant="bodySmall" style={{ color: '#f97316', marginBottom: 12 }}>
-                    ⚠️ Configure suas disciplinas no perfil para simulados personalizados
-                  </Text>
-                  <View style={styles.chipContainer}>
-                    {SUBJECTS.map(subj => (
-                      <Chip
-                        key={subj}
-                        selected={selectedSubject === subj}
-                        onPress={() => {
-                          setSelectedSubject(subj);
-                          setSelectedTopic('');
-                        }}
-                        style={styles.chip}
-                      >
-                        {subj}
-                      </Chip>
-                    ))}
-                  </View>
-                </>
-              )}
-            </Card.Content>
-          </Card>
-          {selectedSubject && TOPICS[selectedSubject as keyof typeof TOPICS] && (
-            <Card style={styles.card}>
+          {/* Aviso de config acadêmica */}
+          {userSubjects.length > 0 && userSubjects.filter((s: string) => availableSubjects.includes(s)).length === 0 && (
+            <Card style={[styles.card, { backgroundColor: '#fff7ed', borderColor: '#fed7aa' }]}>
               <Card.Content>
-                <Text variant="titleMedium" style={styles.sectionTitle}>🎯 Tema (Opcional)</Text>
-                <View style={styles.chipContainer}>
-                  <Chip
-                    selected={selectedTopic === ''}
-                    onPress={() => setSelectedTopic('')}
-                    style={styles.chip}
-                  >
-                    Todos os Temas
-                  </Chip>
-                  {TOPICS[selectedSubject as keyof typeof TOPICS].map(topic => (
-                    <Chip
-                      key={topic}
-                      selected={selectedTopic === topic}
-                      onPress={() => setSelectedTopic(topic)}
-                      style={styles.chip}
-                    >
-                      {topic}
-                    </Chip>
-                  ))}
-                </View>
+                <Text style={{ fontSize: 13, color: '#9a3412', lineHeight: 18 }}>
+                  ⚠️ As disciplinas que configuraste ({userSubjects.join(', ')}) ainda não têm exames cadastrados. Mostrando todos os exames disponíveis.
+                </Text>
               </Card.Content>
             </Card>
           )}
+
+          {/* Filtro por disciplina */}
+          {subjectsForFilter.length > 1 && (
+            <View style={styles.filterContainer}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <Chip
+                  selected={filterSubject === ''}
+                  onPress={() => setFilterSubject('')}
+                  style={styles.filterChip}
+                >
+                  Todas
+                </Chip>
+                {subjectsForFilter.map(subj => (
+                  <Chip
+                    key={subj}
+                    selected={filterSubject === subj}
+                    onPress={() => setFilterSubject(filterSubject === subj ? '' : subj)}
+                    style={styles.filterChip}
+                  >
+                    {subj}
+                  </Chip>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Modo de exame */}
           <Card style={styles.card}>
             <Card.Content>
-              <Text variant="titleMedium" style={styles.sectionTitle}>⏱️ Modo de Exame</Text>
               <View style={styles.modeContainer}>
                 <TouchableOpacity
                   style={[styles.modeCard, isTimed && styles.modeCardActive]}
                   onPress={() => setIsTimed(true)}
                 >
-                  <Text style={{ fontSize: 24 }}>⏱️</Text>
+                  <Text style={{ fontSize: 22 }}>⏱️</Text>
                   <Text style={[styles.modeText, isTimed && styles.modeTextActive]}>Com Cronômetro</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.modeCard, !isTimed && styles.modeCardActive]}
                   onPress={() => setIsTimed(false)}
                 >
-                  <Text style={{ fontSize: 24 }}>∞</Text>
+                  <Text style={{ fontSize: 22 }}>∞</Text>
                   <Text style={[styles.modeText, !isTimed && styles.modeTextActive]}>Sem Limite</Text>
                 </TouchableOpacity>
               </View>
             </Card.Content>
           </Card>
-          <Button
-            mode="contained"
-            onPress={startExam}
-            disabled={!selectedSubject}
-            style={styles.startButton}
-            contentStyle={{ paddingVertical: 8 }}
-          >
-            Iniciar Simulado
-          </Button>
+
+          {/* Lista de Exames */}
+          {loading && (
+            <View style={{ padding: 40, alignItems: 'center' }}>
+              <Text style={{ color: colors.textSecondary }}>Carregando exames...</Text>
+            </View>
+          )}
+
+          {!loading && filteredExams.length === 0 && (
+            <Card style={styles.card}>
+              <Card.Content style={{ alignItems: 'center', padding: 32 }}>
+                <Text style={{ fontSize: 40, marginBottom: 8 }}>📋</Text>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.textPrimary, marginBottom: 4 }}>
+                  Nenhum exame encontrado
+                </Text>
+                <Text style={{ fontSize: 13, color: colors.textSecondary, textAlign: 'center' }}>
+                  {userSubjects.length > 0
+                    ? 'Configura as tuas disciplinas no perfil ou aguarda novos exames.'
+                    : 'Ainda não há exames cadastrados no sistema.'}
+                </Text>
+              </Card.Content>
+            </Card>
+          )}
+
+          {!loading && filteredExams.map((exam: any) => (
+            <TouchableOpacity
+              key={exam.id}
+              onPress={() => startExamById(exam)}
+              activeOpacity={0.7}
+            >
+              <Card style={styles.examListItem}>
+                <Card.Content style={styles.examListItemContent}>
+                  <View style={styles.examListItemIconBox}>
+                    <Text style={{ fontSize: 22 }}>📝</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.examListItemTitle}>{exam.subject}</Text>
+                    <Text style={styles.examListItemSubtitle}>{exam.institution} • {exam.year}</Text>
+                    <View style={styles.examListItemMeta}>
+                      <View style={styles.examMetaBadge}>
+                        <Text style={styles.examMetaText}>📋 {exam.questions?.length || 0} questões</Text>
+                      </View>
+                      <View style={styles.examMetaBadge}>
+                        <Text style={styles.examMetaText}>⏱️ {exam.duration || 90} min</Text>
+                      </View>
+                    </View>
+                  </View>
+                  <Text style={styles.examListArrow}>›</Text>
+                </Card.Content>
+              </Card>
+            </TouchableOpacity>
+          ))}
         </ScrollView>
       </SafeAreaView>
     );
@@ -525,6 +494,15 @@ export default function EnhancedSimulatorScreen() {
           <Card style={styles.questionCard}>
             <Card.Content>
               <Text style={styles.questionText}>{currentQuestion.text}</Text>
+              {currentQuestion.imageUrl && (
+                <View style={styles.questionImageContainer}>
+                  <Image
+                    source={{ uri: currentQuestion.imageUrl }}
+                    style={styles.questionImage}
+                    resizeMode="contain"
+                  />
+                </View>
+              )}
               {currentQuestion.topic && (
                 <Chip style={styles.topicChip} textStyle={{fontSize: 11}}>
                   {currentQuestion.topic}
@@ -566,61 +544,16 @@ export default function EnhancedSimulatorScreen() {
                 >
                   <View style={styles.optionContent}>
                     <View style={[styles.optionCircle, isSelected && !showResult && styles.optionCircleSelected]}>
-                      {showResult && icon ? (
-                        <Text style={{ fontSize: 16 }}>{isCorrectOption ? '✓' : '✗'}</Text>
-                      ) : (
-                        <Text style={styles.optionLetter}>{String.fromCharCode(65 + index)}</Text>
-                      )}
+                      {showResult && icon ? (<Text style={{ fontSize: 16 }}>{isCorrectOption ? '✓' : '✗'}</Text>) : (<Text style={styles.optionLetter}>{String.fromCharCode(65 + index)}</Text>)}
                     </View>
-                    <Text style={[styles.optionText, showResult && isCorrectOption && {fontWeight: '600'}]}>
-                      {option}
-                    </Text>
+                    <Text style={[styles.optionText, showResult && isCorrectOption && {fontWeight: '600'}]}>{option}</Text>
                   </View>
                 </TouchableOpacity>
               );
             })}
           </View>
-          {showFeedback && (
-            <Card style={[styles.feedbackCard, {backgroundColor: isCorrect ? '#ecfdf5' : '#fef2f2'}]}>
-              <Card.Content>
-                <Text style={[styles.feedbackTitle, {color: isCorrect ? '#10b981' : '#ef4444'}]}>
-                  {isCorrect ? currentQuestion.correctFeedback : currentQuestion.incorrectFeedback}
-                </Text>
-                <Text style={styles.explanation}>{currentQuestion.explanation}</Text>
-                <Button
-                  mode="outlined"
-                  onPress={() => openYouTube(currentQuestion.learnMoreUrl || '')}
-                  icon="youtube"
-                  style={styles.youtubeButton}
-                  labelStyle={{color: '#ef4444'}}
-                >
-                  {isCorrect ? 'Saiba Mais no YouTube' : 'Ver Explicação no YouTube'}
-                </Button>
-              </Card.Content>
-            </Card>
-          )}
-          <View style={styles.actionButtons}>
-            {!showFeedback ? (
-              <Button
-                mode="contained"
-                onPress={confirmAnswer}
-                disabled={selectedAnswer === null}
-                style={styles.confirmButton}
-                contentStyle={{ paddingVertical: 8 }}
-              >
-                Confirmar Resposta
-              </Button>
-            ) : (
-              <Button
-                mode="contained"
-                onPress={nextQuestion}
-                style={styles.nextButton}
-                contentStyle={{ paddingVertical: 8 }}
-              >
-                {currentQuestionIndex < examQuestions.length - 1 ? 'Próxima Questão' : 'Ver Resultado'}
-              </Button>
-            )}
-          </View>
+          {showFeedback && (<Card style={[styles.feedbackCard, {backgroundColor: isCorrect ? '#ecfdf5' : '#fef2f2'}]}><Card.Content><Text style={[styles.feedbackTitle, {color: isCorrect ? '#10b981' : '#ef4444'}]}>{isCorrect ? currentQuestion.correctFeedback : currentQuestion.incorrectFeedback}</Text><Text style={styles.explanation}>{currentQuestion.explanation}</Text><Button mode="outlined" onPress={() => openYouTube(currentQuestion.learnMoreUrl || '')} icon="youtube" style={styles.youtubeButton} labelStyle={{color: '#ef4444'}}>{isCorrect ? 'Saiba Mais no YouTube' : 'Ver Explicação no YouTube'}</Button></Card.Content></Card>)}
+          <View style={styles.actionButtons}>{!showFeedback ? (<Button mode="contained" onPress={confirmAnswer} disabled={selectedAnswer === null} style={styles.confirmButton} contentStyle={{ paddingVertical: 8 }}>Confirmar Resposta</Button>) : (<Button mode="contained" onPress={nextQuestion} style={styles.nextButton} contentStyle={{ paddingVertical: 8 }}>{currentQuestionIndex < examQuestions.length - 1 ? 'Próxima Questão' : 'Ver Resultado'}</Button>)}</View>
         </ScrollView>
       </SafeAreaView>
     );
@@ -651,20 +584,7 @@ export default function EnhancedSimulatorScreen() {
         <Card style={styles.card}>
           <Card.Content>
             <Text variant="titleMedium" style={styles.sectionTitle}>📊 Análise de Desempenho</Text>
-            <View style={styles.statsGrid}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{correctCount}</Text>
-                <Text style={styles.statLabel}>Acertos</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={[styles.statValue, {color: '#ef4444'}]}>{examQuestions.length - correctCount}</Text>
-                <Text style={styles.statLabel}>Erros</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{(percentage || 0).toFixed(0)}%</Text>
-                <Text style={styles.statLabel}>Aproveitamento</Text>
-              </View>
-            </View>
+            <View style={styles.statsGrid}><View style={styles.statItem}><Text style={styles.statValue}>{correctCount}</Text><Text style={styles.statLabel}>Acertos</Text></View><View style={styles.statItem}><Text style={[styles.statValue, {color: '#ef4444'}]}>{examQuestions.length - correctCount}</Text><Text style={styles.statLabel}>Erros</Text></View><View style={styles.statItem}><Text style={styles.statValue}>{(percentage || 0).toFixed(0)}%</Text><Text style={styles.statLabel}>Aproveitamento</Text></View></View>
           </Card.Content>
         </Card>
         <Card style={styles.card}>
@@ -688,66 +608,15 @@ export default function EnhancedSimulatorScreen() {
               const userAnswer = answers[question.id];
               const isCorrect = userAnswer === question.correctOption;
               return (
-                <View key={question.id} style={[styles.reviewItem, {borderLeftColor: isCorrect ? '#10b981' : '#ef4444'}]}>
-                  <View style={styles.reviewHeader}>
-                    <Text style={styles.reviewQuestionNumber}>Questão {index + 1}</Text>
-                    <View style={[styles.reviewBadge, {backgroundColor: isCorrect ? '#ecfdf5' : '#fef2f2'}]}>
-                      <Text style={[styles.reviewBadgeText, {color: isCorrect ? '#10b981' : '#ef4444'}]}>
-                        {isCorrect ? '✓ Correta' : '✗ Incorreta'}
-                      </Text>
-                    </View>
-                  </View>
-                  <Text style={styles.reviewQuestionText}>{question.text}</Text>
-                  <View style={styles.reviewAnswers}>
-                    {question.options.map((option: string, optIndex: number) => (
-                      <View 
-                        key={optIndex} 
-                        style={[
-                          styles.reviewOption,
-                          optIndex === question.correctOption && styles.correctOptionStyle,
-                          userAnswer === optIndex && optIndex !== question.correctOption && styles.incorrectOptionStyle
-                        ]}
-                      >
-                        <Text style={[
-                          styles.reviewOptionText,
-                          optIndex === question.correctOption && styles.correctOptionText,
-                          userAnswer === optIndex && optIndex !== question.correctOption && styles.incorrectOptionText
-                        ]}>
-                          {option}
-                        </Text>
-                        {optIndex === question.correctOption && <Text style={styles.correctIndicator}>✓</Text>}
-                        {userAnswer === optIndex && optIndex !== question.correctOption && <Text style={styles.incorrectIndicator}>✗</Text>}
-                      </View>
-                    ))}
-                  </View>
-                  {question.explanation && (
-                    <View style={styles.explanationBox}>
-                      <Text style={styles.explanationLabel}>Explicação:</Text>
-                      <Text style={styles.explanationText}>{question.explanation}</Text>
-                    </View>
-                  )}
+                <View key={question.id} style={[styles.reviewItem, {borderLeftColor: isCorrect ? '#10b981' : '#ef4444'}]}><View style={styles.reviewHeader}><Text style={styles.reviewQuestionNumber}>Questão {index + 1}</Text><View style={[styles.reviewBadge, {backgroundColor: isCorrect ? '#ecfdf5' : '#fef2f2'}]}><Text style={[styles.reviewBadgeText, {color: isCorrect ? '#10b981' : '#ef4444'}]}>{isCorrect ? '✓ Correta' : '✗ Incorreta'}</Text></View></View><Text style={styles.reviewQuestionText}>{question.text}</Text>
+                  <View style={styles.reviewAnswers}>{question.options.map((option: string, optIndex: number) => (<View key={optIndex} style={[styles.reviewOption, optIndex === question.correctOption && styles.correctOptionStyle, userAnswer === optIndex && optIndex !== question.correctOption && styles.incorrectOptionStyle]}><Text style={[styles.reviewOptionText, optIndex === question.correctOption && styles.correctOptionText, userAnswer === optIndex && optIndex !== question.correctOption && styles.incorrectOptionText]}>{option}</Text>{optIndex === question.correctOption && (<Text style={styles.correctIndicator}>✓</Text>)}{userAnswer === optIndex && optIndex !== question.correctOption && (<Text style={styles.incorrectIndicator}>✗</Text>)}</View>))}</View>{question.explanation && (<View style={styles.explanationBox}><Text style={styles.explanationLabel}>Explicação:</Text><Text style={styles.explanationText}>{question.explanation}</Text></View>)}
                 </View>
               );
             })}
           </Card.Content>
         </Card>
 
-        <View style={styles.resultActions}>
-          <Button
-            mode="outlined"
-            onPress={resetSimulator}
-            style={styles.resultButton}
-          >
-            Novo Simulado
-          </Button>
-          <Button
-            mode="contained"
-            onPress={startExam}
-            style={styles.resultButton}
-          >
-            Tentar Novamente
-          </Button>
-        </View>
+        <View style={styles.resultActions}><Button mode="outlined" onPress={resetSimulator} style={styles.resultButton}>Novo Simulado</Button><Button mode="contained" onPress={() => currentExam && startExamById(currentExam)} style={styles.resultButton}>Tentar Novamente</Button></View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -756,279 +625,430 @@ export default function EnhancedSimulatorScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: colors.background,
   },
   content: {
-    padding: 16,
+    padding: spacing.lg,
   },
+  
+  // Header estilo Yango
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: spacing.xl,
   },
-  title: {
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.grayLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  backIcon: {
+    fontSize: 24,
+    color: colors.textPrimary,
+  },
+  headerContent: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: 20,
     fontWeight: '700',
-    color: '#111827',
+    marginBottom: 2,
   },
-  card: {
-    marginBottom: 16,
-    borderRadius: 12,
+  headerSubtitle: {
+    fontSize: 13,
+    fontWeight: '400',
+  },
+  cardContent: {
+    padding: spacing.lg,
+  },
+  
+  // Progress Card
+  progressCard: {
+    marginBottom: spacing.lg,
+  },
+  progressCardContent: {
+    padding: spacing.lg,
   },
   sectionTitle: {
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 12,
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: spacing.md,
   },
+  progressItems: {
+    gap: spacing.md,
+  },
+  progressItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  progressIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: borderRadius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  
+  // Cards
+  card: {
+    marginBottom: spacing.lg,
+    borderRadius: borderRadius.xl,
+    backgroundColor: colors.white,
+    ...shadows.small,
+  },
+  
+  // Selection Cards
   chipContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: spacing.sm,
   },
   chip: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.grayLight,
   },
+
+  // Filter
+  filterContainer: {
+    marginBottom: spacing.md,
+  },
+  filterChip: {
+    marginRight: spacing.sm,
+    backgroundColor: colors.grayLight,
+  },
+
+  // Exam List Items
+  examListItem: {
+    marginBottom: spacing.md,
+    borderRadius: borderRadius.xl,
+    backgroundColor: colors.white,
+    ...shadows.small,
+  },
+  examListItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+  },
+  examListItemIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  examListItemTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 2,
+  },
+  examListItemSubtitle: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginBottom: 6,
+  },
+  examListItemMeta: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  examMetaBadge: {
+    backgroundColor: colors.grayLight,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+  },
+  examMetaText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  examListArrow: {
+    fontSize: 24,
+    fontWeight: '300',
+    color: colors.textTertiary,
+  },
+  
+  // Mode Selection
   modeContainer: {
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.md,
   },
   modeCard: {
     flex: 1,
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 12,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
     borderWidth: 2,
-    borderColor: '#e5e7eb',
-    backgroundColor: '#fff',
+    borderColor: colors.borderLight,
+    backgroundColor: colors.white,
   },
   modeCardActive: {
-    borderColor: '#4f46e5',
-    backgroundColor: '#eef2ff',
+    borderColor: colors.primary,
+    backgroundColor: colors.secondary,
   },
   modeText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#6b7280',
+    color: colors.textSecondary,
   },
   modeTextActive: {
-    color: '#4f46e5',
+    color: colors.primary,
   },
+  
+  // Start Button
   startButton: {
-    marginTop: 8,
-    borderRadius: 12,
-    backgroundColor: '#4f46e5',
+    marginTop: spacing.lg,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.primary,
   },
+  
+  // Exam Mode
   examHeader: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: colors.borderLight,
+    padding: spacing.md,
   },
   examHeaderTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 8,
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
   },
   examTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   examSubtitle: {
     fontSize: 12,
-    color: '#6b7280',
+    color: colors.textSecondary,
   },
   timer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fef3c7',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    backgroundColor: colors.warningLight,
+    borderRadius: borderRadius.round,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
   timerText: {
     fontSize: 14,
-    fontWeight: '800',
-    color: '#f97316',
+    fontWeight: '700',
+    color: colors.warning,
+  },
+  
+  // Question Card
+  questionCard: {
+    marginBottom: spacing.lg,
+    borderRadius: borderRadius.xl,
+    backgroundColor: colors.white,
+    ...shadows.small,
   },
   examContent: {
-    padding: 16,
-  },
-  questionCard: {
-    marginBottom: 20,
-    borderRadius: 12,
+    padding: spacing.lg,
   },
   questionText: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.textPrimary,
     lineHeight: 26,
-    marginBottom: 12,
+    marginBottom: spacing.md,
+  },
+  questionImageContainer: {
+    marginVertical: spacing.md,
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+    backgroundColor: colors.grayLight,
+  },
+  questionImage: {
+    width: '100%',
+    height: 200,
   },
   topicChip: {
     alignSelf: 'flex-start',
-    backgroundColor: '#eef2ff',
+    backgroundColor: colors.secondary,
   },
+  
+  // Options
   optionsContainer: {
-    gap: 12,
-    marginBottom: 20,
+    gap: spacing.md,
+    marginBottom: spacing.lg,
   },
   optionCard: {
-    borderRadius: 12,
+    borderRadius: borderRadius.md,
     borderWidth: 2,
-    padding: 16,
+    padding: spacing.md,
+    backgroundColor: colors.white,
   },
   optionContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: spacing.md,
   },
   optionCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#d1d5db',
+    borderColor: colors.borderLight,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
   },
   optionCircleSelected: {
-    borderColor: '#4f46e5',
-    backgroundColor: '#4f46e5',
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
   },
   optionLetter: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#6b7280',
+    color: colors.textSecondary,
   },
   optionText: {
     flex: 1,
     fontSize: 15,
-    color: '#374151',
+    color: colors.textPrimary,
   },
+  
+  // Feedback
   feedbackCard: {
-    marginBottom: 20,
-    borderRadius: 12,
+    marginBottom: spacing.lg,
+    borderRadius: borderRadius.xl,
+    backgroundColor: colors.white,
+    ...shadows.small,
   },
   feedbackTitle: {
     fontSize: 15,
     fontWeight: '700',
-    marginBottom: 8,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
   },
   explanation: {
     fontSize: 14,
-    color: '#374151',
+    color: colors.textPrimary,
     lineHeight: 20,
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   youtubeButton: {
-    borderColor: '#ef4444',
+    borderColor: colors.error,
   },
+  
+  // Action Buttons
   actionButtons: {
-    marginBottom: 20,
+    marginBottom: spacing.lg,
   },
   confirmButton: {
-    borderRadius: 12,
-    backgroundColor: '#4f46e5',
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.primary,
   },
   nextButton: {
-    borderRadius: 12,
-    backgroundColor: '#10b981',
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.success,
   },
+  
+  // Result
   resultContent: {
-    padding: 16,
+    padding: spacing.lg,
   },
   resultHeader: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: spacing.xl,
   },
   scoreCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   scoreValue: {
-    fontSize: 48,
+    fontSize: 40,
     fontWeight: '800',
+    color: colors.success,
   },
   scoreMax: {
-    fontSize: 16,
-    color: '#9ca3af',
+    fontSize: 14,
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   resultTitle: {
-    fontWeight: '800',
-    color: '#111827',
-    marginBottom: 8,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
     textAlign: 'center',
   },
   resultSubtitle: {
     fontSize: 14,
-    color: '#6b7280',
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   statsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginTop: 8,
+    marginTop: spacing.md,
   },
   statItem: {
     alignItems: 'center',
   },
   statValue: {
     fontSize: 28,
-    fontWeight: '800',
-    color: '#10b981',
+    fontWeight: '700',
+    color: colors.success,
   },
   statLabel: {
     fontSize: 12,
-    color: '#6b7280',
-    marginTop: 4,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
   },
   recommendationText: {
     fontSize: 14,
-    color: '#374151',
+    color: colors.textPrimary,
     lineHeight: 20,
   },
   resultActions: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
+    gap: spacing.md,
+    marginTop: spacing.lg,
   },
   resultButton: {
     flex: 1,
-    borderRadius: 12,
+    borderRadius: borderRadius.md,
   },
+  
+  // Review
   reviewItem: {
-    padding: 16,
-    marginBottom: 12,
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.grayLight,
+    marginBottom: spacing.md,
     borderLeftWidth: 4,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
   },
   reviewHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   reviewQuestionNumber: {
     fontWeight: '700',
-    color: '#111827',
+    color: colors.textPrimary,
     fontSize: 14,
   },
   reviewBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.sm,
   },
   reviewBadgeText: {
     fontSize: 12,
@@ -1036,99 +1056,67 @@ const styles = StyleSheet.create({
   },
   reviewQuestionText: {
     fontSize: 15,
-    color: '#374151',
-    marginBottom: 12,
+    color: colors.textPrimary,
+    marginBottom: spacing.md,
     lineHeight: 22,
   },
   reviewAnswers: {
-    gap: 8,
+    gap: spacing.sm,
   },
   reviewOption: {
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: '#f9fafb',
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.grayLight,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   correctOptionStyle: {
-    backgroundColor: '#ecfdf5',
+    backgroundColor: colors.successLight,
     borderWidth: 1,
-    borderColor: '#10b981',
+    borderColor: colors.success,
   },
   incorrectOptionStyle: {
-    backgroundColor: '#fef2f2',
+    backgroundColor: colors.errorLight,
     borderWidth: 1,
-    borderColor: '#ef4444',
+    borderColor: colors.error,
   },
   reviewOptionText: {
     fontSize: 14,
-    color: '#374151',
-    flex: 1,
+    color: colors.textPrimary,
   },
   correctOptionText: {
-    color: '#065f46',
     fontWeight: '600',
+    color: colors.success,
   },
   incorrectOptionText: {
-    color: '#991b1b',
-    fontWeight: '600',
+    color: colors.error,
   },
   correctIndicator: {
-    color: '#10b981',
+    color: colors.success,
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
   incorrectIndicator: {
-    color: '#ef4444',
+    color: colors.error,
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
   explanationBox: {
-    marginTop: 12,
-    padding: 12,
-    backgroundColor: '#fef3c7',
-    borderRadius: 8,
+    marginTop: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.warningLight,
+    borderRadius: borderRadius.md,
   },
   explanationLabel: {
     fontWeight: '700',
-    color: '#92400e',
+    color: colors.warning,
     fontSize: 13,
-    marginBottom: 4,
+    marginBottom: spacing.sm,
   },
   explanationText: {
     fontSize: 13,
-    color: '#78350f',
+    color: colors.textPrimary,
     lineHeight: 18,
-  },
-  progressCard: {
-    backgroundColor: '#eef2ff',
-    borderRadius: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#dbeafe',
-  },
-  progressItems: {
-    gap: 12,
-  },
-  progressItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  progressIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  progressLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  backButton: {
-    padding: 8,
-    marginRight: 8,
   },
 });

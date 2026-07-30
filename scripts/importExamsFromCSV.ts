@@ -1,0 +1,271 @@
+/**
+ * Script para importar exames e questões de um arquivo CSV
+ * Uso: npx ts-node scripts/importExamsFromCSV.ts <caminho-do-arquivo.csv>
+ */
+
+import { collection, addDoc, getDocs, query, where, doc, setDoc } from 'firebase/firestore';
+import { db } from '../src/config/firebase';
+import * as fs from 'fs';
+import * as path from 'path';
+
+interface CSVQuestion {
+  institution: string;
+  subject: string;
+  year: string;
+  duration: string;
+  status: string;
+  topic: string;
+  question_text: string;
+  option_a: string;
+  option_b: string;
+  option_c: string;
+  option_d: string;
+  option_e: string;
+  correct_option: string;
+  explanation: string;
+  correct_feedback: string;
+  incorrect_feedback: string;
+  learn_more_url: string;
+}
+
+interface ExamData {
+  institution: string;
+  subject: string;
+  year: number;
+  duration: number;
+  status: string;
+  questions: any[];
+}
+
+// Parser de linha CSV que respeita campos entre aspas
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+// Função para ler CSV
+function parseCSV(filePath: string): CSVQuestion[] {
+  const fileContent = fs.readFileSync(filePath, 'utf-8');
+  const lines = fileContent.split('\n');
+  
+  // Encontrar linha de cabeçalho (começa com "institution")
+  const headerIndex = lines.findIndex(line => line.trim().startsWith('institution'));
+  if (headerIndex === -1) {
+    throw new Error('Cabeçalho não encontrado no arquivo CSV');
+  }
+  
+  const headers = parseCSVLine(lines[headerIndex]);
+  const dataLines = lines.slice(headerIndex + 1).filter(line => line.trim() && !line.startsWith('#'));
+  
+  const questions: CSVQuestion[] = [];
+  
+  for (const line of dataLines) {
+    const values = parseCSVLine(line);
+    const question: any = {};
+    
+    headers.forEach((header, index) => {
+      question[header] = values[index] || '';
+    });
+    
+    questions.push(question as CSVQuestion);
+  }
+  
+  return questions;
+}
+
+// Agrupar questões por exame
+function groupQuestionsByExam(questions: CSVQuestion[]): Map<string, ExamData> {
+  const examsMap = new Map<string, ExamData>();
+  
+  questions.forEach(q => {
+    const examKey = `${q.institution}-${q.subject}-${q.year}`;
+    
+    if (!examsMap.has(examKey)) {
+      examsMap.set(examKey, {
+        institution: q.institution,
+        subject: q.subject,
+        year: parseInt(q.year) || new Date().getFullYear(),
+        duration: parseInt(q.duration) || 90,
+        status: q.status || 'pending',
+        questions: []
+      });
+    }
+    
+    const exam = examsMap.get(examKey)!;
+    
+    exam.questions.push({
+      text: q.question_text,
+      options: [q.option_a, q.option_b, q.option_c, q.option_d, q.option_e].filter(o => o),
+      correctOption: parseInt(q.correct_option) || 0,
+      explanation: q.explanation || '',
+      correctFeedback: q.correct_feedback || 'Resposta correta!',
+      incorrectFeedback: q.incorrect_feedback || 'Resposta incorreta.',
+      topic: q.topic || q.subject,
+      learnMoreUrl: q.learn_more_url || ''
+    });
+  });
+  
+  return examsMap;
+}
+
+// Verificar se exame já existe
+async function examExists(institution: string, subject: string, year: number): Promise<boolean> {
+  const q = query(
+    collection(db, 'exams'),
+    where('institution', '==', institution),
+    where('subject', '==', subject),
+    where('year', '==', year)
+  );
+  
+  const snapshot = await getDocs(q);
+  return !snapshot.empty;
+}
+
+// Importar exame para Firebase
+async function importExam(examData: ExamData, skipExisting: boolean = true): Promise<string> {
+  const { institution, subject, year, duration, status, questions } = examData;
+  
+  // Verificar se exame já existe
+  if (skipExisting && await examExists(institution, subject, year)) {
+    console.log(`⏭️  Exame já existe: ${institution} - ${subject} (${year}) - pulando`);
+    return 'skipped';
+  }
+  
+  try {
+    // Criar documento do exame
+    const examRef = await addDoc(collection(db, 'exams'), {
+      institution,
+      subject,
+      year,
+      duration,
+      status,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    
+    console.log(`✅ Exame criado: ${institution} - ${subject} (${year}) - ID: ${examRef.id}`);
+    
+    // Adicionar questões como subcoleção
+    for (const question of questions) {
+      await addDoc(collection(db, 'exams', examRef.id, 'questions'), {
+        ...question,
+        createdAt: new Date()
+      });
+    }
+    
+    console.log(`   📝 ${questions.length} questões adicionadas`);
+    
+    return examRef.id;
+  } catch (error) {
+    console.error(`❌ Erro ao importar exame ${institution} - ${subject} (${year}):`, error);
+    throw error;
+  }
+}
+
+// Função principal
+async function importFromCSV(filePath: string, options: { skipExisting?: boolean; force?: boolean } = {}) {
+  console.log('\n╔════════════════════════════════════════════════════════╗');
+  console.log('║     IMPORTAÇÃO DE EXAMES - SIMULAPASS                 ║');
+  console.log('╚════════════════════════════════════════════════════════╝\n');
+  
+  const { skipExisting = true, force = false } = options;
+  
+  try {
+    // Verificar se arquivo existe
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`Arquivo não encontrado: ${filePath}`);
+    }
+    
+    console.log(`📂 Lendo arquivo: ${filePath}`);
+    
+    // Parse CSV
+    const questions = parseCSV(filePath);
+    console.log(`📊 ${questions.length} questões encontradas no CSV\n`);
+    
+    if (questions.length === 0) {
+      console.log('⚠️  Nenhuma questão encontrada no arquivo');
+      return;
+    }
+    
+    // Agrupar por exame
+    const examsMap = groupQuestionsByExam(questions);
+    console.log(`📚 ${examsMap.size} exames identificados:\n`);
+    
+    // Listar exames
+    examsMap.forEach((exam, key) => {
+      console.log(`   - ${exam.institution} - ${exam.subject} (${exam.year}) - ${exam.questions.length} questões`);
+    });
+    
+    console.log('\n🚀 Iniciando importação...\n');
+    
+    // Importar cada exame
+    let imported = 0;
+    let skipped = 0;
+    let errors = 0;
+    
+    for (const [key, examData] of examsMap) {
+      try {
+        const result = await importExam(examData, skipExisting && !force);
+        
+        if (result === 'skipped') {
+          skipped++;
+        } else {
+          imported++;
+        }
+      } catch (error) {
+        errors++;
+        console.error(`   ❌ Erro ao importar: ${error}`);
+      }
+    }
+    
+    console.log('\n═══════════════════════════════════════════════════════');
+    console.log('📊 RESUMO DA IMPORTAÇÃO:');
+    console.log(`   ✅ Importados: ${imported}`);
+    console.log(`   ⏭️  Pulados: ${skipped}`);
+    console.log(`   ❌ Erros: ${errors}`);
+    console.log('═══════════════════════════════════════════════════════\n');
+    
+  } catch (error) {
+    console.error('\n❌ Erro fatal durante importação:', error);
+    process.exit(1);
+  }
+}
+
+// Executar script
+const args = process.argv.slice(2);
+const filePath = args[0];
+
+if (!filePath) {
+  console.log('\n❌ Erro: Caminho do arquivo CSV não fornecido');
+  console.log('\nUso: npx ts-node scripts/importExamsFromCSV.ts <caminho-do-arquivo.csv> [--force]');
+  console.log('\nOpções:');
+  console.log('  --force  - Reimportar exames que já existem');
+  console.log('\nExemplo:');
+  console.log('  npx ts-node scripts/importExamsFromCSV.ts data/exams_template.csv');
+  console.log('  npx ts-node scripts/importExamsFromCSV.ts data/exams_template.csv --force\n');
+  process.exit(1);
+}
+
+const force = args.includes('--force');
+importFromCSV(filePath, { skipExisting: !force, force }).catch(console.error);

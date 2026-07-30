@@ -6,6 +6,8 @@ import { useNavigation } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useAuthStore } from '../store/authStore';
 import { UserRole } from '../types';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import { auth } from '../config/firebase';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -30,14 +32,37 @@ export default function LoginScreen() {
     );
   };
 
+  const handleForgotPassword = async () => {
+    if (!email) {
+      Alert.alert('Email Necessário', 'Por favor, insira seu email para recuperar a senha.');
+      return;
+    }
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      Alert.alert(
+        'Email Enviado! ✅',
+        `Um link para redefinir sua senha foi enviado para ${email}. Verifique sua caixa de entrada.`
+      );
+    } catch (error: any) {
+      let errorMessage = 'Erro ao enviar email de recuperação.';
+      if (error?.code === 'auth/user-not-found') {
+        errorMessage = 'Nenhuma conta encontrada com este email.';
+      } else if (error?.code === 'auth/invalid-email') {
+        errorMessage = 'Email inválido.';
+      }
+      Alert.alert('Erro', errorMessage);
+    }
+  };
+
   const handleAuth = async () => {
     if (!email || !password) {
-      Alert.alert('Erro', 'Por favor, preencha email e senha.');
+      Alert.alert('Campos Obrigatórios', 'Por favor, preencha email e senha.');
       return;
     }
 
     if (!isLogin && !name) {
-      Alert.alert('Erro', 'Por favor, preencha seu nome.');
+      Alert.alert('Nome Obrigatório', 'Por favor, preencha seu nome completo.');
       return;
     }
 
@@ -61,8 +86,10 @@ export default function LoginScreen() {
         errorMessage = 'Usuário não encontrado. Crie uma conta primeiro.';
       } else if (e?.code === 'auth/wrong-password') {
         errorMessage = 'Senha incorreta.';
+      } else if (e?.code === 'auth/invalid-credential') {
+        errorMessage = 'Email ou senha incorretos. Verifique suas credenciais.';
       } else if (e?.code === 'auth/email-already-in-use') {
-        errorMessage = 'Este email já está em uso. Faça login.';
+        errorMessage = 'Este email já está em uso. Faça login em vez de criar conta.';
       } else if (e?.code === 'auth/weak-password') {
         errorMessage = 'A senha deve ter pelo menos 6 caracteres.';
       } else if (e?.code === 'auth/network-request-failed') {
@@ -85,15 +112,27 @@ export default function LoginScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
           <View style={styles.iconBox}>
-            <Text style={{ fontSize: 32 }}>🛡️</Text>
+            <Text style={{ fontSize: 32 }}>�</Text>
           </View>
           <Text variant="headlineMedium" style={styles.title}>
-            {isLogin ? 'Bem-vindo de volta' : 'Crie a sua conta'}
+            Simula<Text style={{ color: '#FF4D3A' }}>Pass</Text>
           </Text>
           <Text variant="labelMedium" style={styles.subtitle}>
-            {isLogin ? 'Faça login para continuar' : 'Cadastre-se como estudante'}
+            {isLogin ? 'Bem-vindo de volta! Faça login para continuar' : 'Crie sua conta de estudante'}
           </Text>
         </View>
+
+        {isLogin && (
+          <View style={styles.helpCard}>
+            <Text style={styles.helpEmoji}>💡</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.helpTitle}>Dica de Login</Text>
+              <Text style={styles.helpText}>
+                Use o email e senha que você cadastrou. Se esqueceu a senha, clique em "Esqueceu a senha?" abaixo.
+              </Text>
+            </View>
+          </View>
+        )}
 
         <View style={styles.formCard}>
           {!isLogin && (
@@ -185,13 +224,16 @@ export default function LoginScreen() {
             >
               {isLogin ? 'Criar nova conta' : 'Já tenho conta'}
             </Button>
-            <Button
-              mode="text"
-              compact
-              labelStyle={{ color: '#9ca3af', fontSize: 12 }}
-            >
-              Esqueceu a senha?
-            </Button>
+            {isLogin && (
+              <Button
+                mode="text"
+                compact
+                onPress={handleForgotPassword}
+                labelStyle={{ color: '#9ca3af', fontSize: 12 }}
+              >
+                Esqueceu a senha?
+              </Button>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -208,16 +250,39 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 24,
   },
   iconBox: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
+    width: 48,
+    height: 48,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
     backgroundColor: '#4f46e5',
+  },
+  helpCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#EAF3FF',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    gap: 10,
+  },
+  helpEmoji: {
+    fontSize: 20,
+  },
+  helpTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1e40af',
+    marginBottom: 3,
+  },
+  helpText: {
+    fontSize: 11,
+    color: '#3b82f6',
+    lineHeight: 16,
   },
   title: {
     fontWeight: '800',
@@ -231,26 +296,22 @@ const styles = StyleSheet.create({
   },
   formCard: {
     backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 24,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
+    borderRadius: 10,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
   },
   input: {
-    marginBottom: 16,
+    marginBottom: 12,
     backgroundColor: '#f9fafb',
   },
   inputOutline: {
-    borderRadius: 16,
+    borderRadius: 8,
     borderColor: '#f3f4f6',
   },
   submitBtn: {
-    borderRadius: 16,
-    marginTop: 8,
-    elevation: 4,
+    borderRadius: 8,
+    marginTop: 6,
     backgroundColor: '#4f46e5',
   },
   submitLabel: {

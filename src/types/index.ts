@@ -1,6 +1,7 @@
 export enum UserRole {
   STUDENT = 'student',
   ADMIN = 'admin',
+  PROMOTER = 'promoter',
 }
 
 export enum LessonStatus {
@@ -30,19 +31,23 @@ export interface User {
   intendedCourse?: string;
   competingDisciplines?: string[];
   focus?: 'exams' | 'tutoring' | 'both';
-  
+
+  // Referral system
+  referralCode?: string;
+  referredBy?: string; // Promoter code if user was referred
+
   // Tutor-specific fields
   subject?: string;
   price?: number;
   rating?: string;
   reviews?: number;
-  
+
   // Premium/Subscription fields
   isPremium?: boolean;
   premiumExpiresAt?: Date;
   subscriptionType?: 'monthly' | 'yearly' | 'lifetime';
   subscriptionId?: string;
-  
+
   // Timestamps
   createdAt?: Date;
   updatedAt?: Date;
@@ -238,4 +243,88 @@ export interface PricingPlan {
   features: string[];
   popular?: boolean;
   savings?: string;
+}
+
+// Referral System Types
+export interface Promoter {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  referralCode: string;
+  commissionRate: number; // Percentage (e.g., 10 for 10%)
+  totalLeads: number;
+  activeLeads: number;
+  pendingCommission: number;
+  paidCommission: number;
+  status: 'active' | 'suspended' | 'inactive';
+  paymentData?: {
+    mpesaNumber?: string;
+    bankAccount?: string;
+    bankName?: string;
+  };
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ReferralLead {
+  id: string;
+  promoterId: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  userPhone: string;
+  imei: string;
+  deviceFingerprint: string;
+  activationDate: Date;
+  status: 'pending' | 'confirmed' | 'fraud' | 'paid';
+  commissionAmount: number;
+  paymentDate?: Date;
+  fraudReason?: string;
+}
+
+export interface ReferralValidation {
+  isValid: boolean;
+  reason?: string;
+  existingLead?: ReferralLead;
+}
+
+// Anti-Fraud Types
+export interface DeviceFingerprint {
+  imei: string;
+  platform: string;
+  osVersion: string;
+  appVersion: string;
+  screenWidth: number;
+  screenHeight: number;
+  language: string;
+  timezone: string;
+  createdAt: Date;
+}
+
+export interface FraudAlert {
+  id: string;
+  type: 'duplicate_imei' | 'duplicate_email' | 'duplicate_phone' | 'suspicious_activity';
+  userId: string;
+  promoterId?: string;
+  description: string;
+  severity: 'low' | 'medium' | 'high';
+  resolved: boolean;
+  createdAt: Date;
+}
+
+// Promo Code Types
+export interface PromoCode {
+  id: string;
+  code: string;
+  type: 'referral' | 'promotional';
+  discountType: 'percentage' | 'fixed';
+  discountValue: number;
+  maxUses?: number;
+  currentUses: number;
+  validFrom: Date;
+  validUntil: Date;
+  createdBy: string; // Admin ID
+  promoterId?: string; // If referral code
+  status: 'active' | 'expired' | 'disabled';
 }

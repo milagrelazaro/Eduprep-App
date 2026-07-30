@@ -4,6 +4,7 @@ import { Text, Card } from 'react-native-paper';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../store/authStore';
 import { examResultService } from '../services/firebaseService';
+import { colors, spacing, borderRadius, shadows } from '../theme/colors';
 
 export default function ExamHistoryScreen() {
   const navigation = useNavigation();
@@ -132,20 +133,7 @@ export default function ExamHistoryScreen() {
           >
             <Card style={styles.resultCard}>
               <Card.Content>
-              <View style={styles.resultHeader}>
-                <View style={{ flex: 1 }}>
-                  <Text variant="titleMedium" style={styles.examName}>
-                    {result.examName || result.subject || 'Simulado'}
-                  </Text>
-                  <Text variant="bodySmall" style={{ color: '#6b7280' }}>
-                    {formatDate(result.date)}
-                  </Text>
-                </View>
-                <View style={[styles.scoreBadge, { backgroundColor: getScoreBg(result.score) }]}>
-                  <Text style={[styles.scoreText, { color: getScoreColor(result.score) }]}>
-                    {(result.score || 0).toFixed(1)}%
-                  </Text>
-                </View>
+              <View style={styles.resultHeader}><View style={{ flex: 1 }}><Text variant="titleMedium" style={styles.examName}>{result.examName || result.subject || 'Simulado'}</Text><Text variant="bodySmall" style={{ color: '#6b7280' }}>{formatDate(result.date)}</Text></View><View style={[styles.scoreBadge, { backgroundColor: getScoreBg(result.score) }]}><Text style={[styles.scoreText, { color: getScoreColor(result.score) }]}>{(result.score || 0).toFixed(1)}%</Text></View>
               </View>
 
               <View style={styles.resultDetails}>
@@ -193,33 +181,34 @@ export default function ExamHistoryScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: colors.background,
   },
   content: {
-    padding: 16,
+    padding: spacing.md,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
-    gap: 12,
+    marginBottom: spacing.xl,
+    gap: spacing.md,
   },
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f3f4f6',
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.grayLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: {
     fontWeight: '800',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   statsCard: {
-    marginBottom: 16,
-    borderRadius: 12,
-    elevation: 2,
+    marginBottom: spacing.lg,
+    borderRadius: borderRadius.xl,
+    backgroundColor: colors.white,
+    ...shadows.small,
   },
   statsRow: {
     flexDirection: 'row',
@@ -231,37 +220,39 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   statLabel: {
     fontSize: 12,
-    color: '#6b7280',
-    marginTop: 4,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
   },
   card: {
-    marginBottom: 16,
-    borderRadius: 12,
-    elevation: 2,
+    marginBottom: spacing.lg,
+    borderRadius: borderRadius.xl,
+    backgroundColor: colors.white,
+    ...shadows.small,
   },
   resultCard: {
-    marginBottom: 12,
-    borderRadius: 12,
-    elevation: 2,
+    marginBottom: spacing.md,
+    borderRadius: borderRadius.xl,
+    backgroundColor: colors.white,
+    ...shadows.small,
   },
   resultHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   examName: {
     fontWeight: '700',
-    color: '#111827',
-    marginBottom: 4,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
   },
   scoreBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
   },
   scoreText: {
     fontSize: 18,
@@ -269,25 +260,25 @@ const styles = StyleSheet.create({
   },
   resultDetails: {
     flexDirection: 'row',
-    gap: 16,
-    marginBottom: 12,
+    gap: spacing.md,
+    marginBottom: spacing.md,
   },
   detailItem: {
     flex: 1,
   },
   detailLabel: {
     fontSize: 11,
-    color: '#6b7280',
-    marginBottom: 2,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
   },
   detailValue: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   analysisBox: {
-    padding: 12,
-    borderRadius: 8,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
     borderLeftWidth: 3,
   },
 });

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { Text, Card, IconButton, Button } from 'react-native-paper';
 import { useNavigation, CompositeNavigationProp, useFocusEffect } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -10,6 +10,7 @@ import LogoutModal from '../components/LogoutModal';
 import { MainTabParamList, RootStackParamList } from '../navigation/AppNavigator';
 import { examResultService } from '../services/firebaseService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { colors, borderRadius, spacing, typography, shadows } from '../theme/colors';
 
 type StackNav = NativeStackNavigationProp<RootStackParamList>;
 type DashboardNavigationProp = CompositeNavigationProp<
@@ -19,13 +20,12 @@ type DashboardNavigationProp = CompositeNavigationProp<
 
 function DashCard({ title, value, subtitle, icon, color }: any) {
   const colorMap: any = {
-    blue: { bg: '#eff6ff', text: '#3b82f6' },
-    indigo: { bg: '#eef2ff', text: '#4f46e5' },
-    green: { bg: '#ecfdf5', text: '#10b981' },
-    yellow: { bg: '#fefce8', text: '#eab308' },
-    orange: { bg: '#fff7ed', text: '#f97316' },
+    blue: { bg: colors.secondary, text: colors.info },
+    orange: { bg: '#FFF0ED', text: colors.primary },
+    green: { bg: colors.successLight, text: colors.success },
+    yellow: { bg: colors.warningLight, text: colors.warning },
   };
-  const c = colorMap[color] || colorMap.indigo;
+  const c = colorMap[color] || colorMap.blue;
 
   const iconEmoji: { [key: string]: string } = {
     'trophy': '🏆',
@@ -36,16 +36,16 @@ function DashCard({ title, value, subtitle, icon, color }: any) {
   };
 
   return (
-    <Card style={styles.dashCard}>
-      <Card.Content>
+    <Card style={[styles.dashCard, { backgroundColor: colors.white, borderRadius: borderRadius.lg, borderWidth: 1, borderColor: colors.borderLight }]}>
+      <Card.Content style={styles.dashCardContent}>
         <View style={styles.dashCardHeader}>
           <View style={[styles.dashIconBox, { backgroundColor: c.bg }]}>
-            <Text style={{ fontSize: 22 }}>{iconEmoji[icon] || '📋'}</Text>
+            <Text style={{ fontSize: 18 }}>{iconEmoji[icon] || '📋'}</Text>
           </View>
-          <Text variant="labelSmall" style={styles.dashCardLabel}>{title}</Text>
+          <Text style={[styles.dashCardLabel, { color: colors.textSecondary }]}>{title}</Text>
         </View>
-        <Text variant="headlineSmall" style={styles.dashCardValue}>{value}</Text>
-        <Text variant="bodySmall" style={{ color: '#9ca3af', marginTop: 2 }}>{subtitle}</Text>
+        <Text style={[styles.dashCardValue, { color: colors.textPrimary }]}>{value}</Text>
+        <Text style={[styles.dashCardSubtitle, { color: colors.textTertiary }]}>{subtitle}</Text>
       </Card.Content>
     </Card>
   );
@@ -123,21 +123,26 @@ export default function DashboardScreen() {
     : '0';
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView style={[styles.screen, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
+      {/* App Title */}
+      <View style={styles.appTitle}>
+        <Text style={[styles.appTitleText, { color: colors.textPrimary }]}>Simula<Text style={{ color: colors.primary }}>Pass</Text></Text>
+        <Text style={[styles.appSubtitle, { color: colors.textSecondary }]}>Simulador de Admissão</Text>
+      </View>
+
+      {/* Header estilo Yango */}
       <View style={styles.header}>
-        <View style={{ flex: 1 }}>
-          <Text variant="headlineSmall" style={styles.greeting}>Olá, {user?.name}! 👋</Text>
-          <Text variant="bodyMedium" style={{ color: '#6b7280' }}>
-            {isStudent ? 'Pronto para praticar os simulados de exames?' : 'Gerencie os exames do sistema.'}
-          </Text>
+        <View style={styles.headerLeft}>
+          <View style={[styles.profilePhoto, { backgroundColor: colors.secondary }]}>
+            <Text style={styles.profileInitial}>{user?.name?.charAt(0) || 'U'}</Text>
+          </View>
+          <View style={styles.userInfo}>
+            <Text style={[styles.userName, { color: colors.textPrimary }]}>{user?.name || 'Utilizador'}</Text>
+            <Text style={[styles.userPhone, { color: colors.textSecondary }]}>
+              {user?.email || 'email@exemplo.com'}
+            </Text>
+          </View>
         </View>
-        <TouchableOpacity
-          onPress={() => setShowLogoutModal(true)}
-          style={{ backgroundColor: '#fef2f2', borderRadius: 12, padding: 12 }}
-          activeOpacity={0.7}
-        >
-          <Text style={{ fontSize: 24 }}>🚪</Text>
-        </TouchableOpacity>
       </View>
 
       <LogoutModal
@@ -148,144 +153,230 @@ export default function DashboardScreen() {
 
       {/* Contagem Regressiva para Estudantes */}
       {isStudent && daysUntilExam !== null && (
-        <Card style={styles.countdownCard}>
-          <Card.Content style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <View style={styles.countdownIcon}>
+        <Card style={[styles.countdownCard, { backgroundColor: colors.white, borderRadius: borderRadius.xxl, ...shadows.small }]}>
+          <Card.Content style={styles.countdownContent}>
+            <View style={styles.countdownLeft}>
+              <View style={[styles.countdownIcon, { backgroundColor: colors.warningLight }]}>
                 <Text style={{ fontSize: 28 }}>⏰</Text>
               </View>
               <View>
-                <Text variant="labelSmall" style={{ color: '#6b7280', marginBottom: 2 }}>Faltam para o exame</Text>
-                <Text variant="headlineMedium" style={{ fontWeight: '800', color: '#111827' }}>
+                <Text style={[styles.countdownLabel, { color: colors.textSecondary }]}>Faltam para o exame</Text>
+                <Text style={[styles.countdownValue, { color: colors.textPrimary }]}>
                   {daysUntilExam} {daysUntilExam === 1 ? 'dia' : 'dias'}
                 </Text>
               </View>
             </View>
-            <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
-              <Text style={{ color: '#4f46e5', fontWeight: '600', fontSize: 14 }}>Configurar</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('AcademicSetup')}>
+              <Text style={[styles.countdownAction, { color: colors.primary }]}>Configurar</Text>
             </TouchableOpacity>
           </Card.Content>
         </Card>
       )}
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 24 }}>
-        <View style={{ flexDirection: 'row', gap: 12, paddingRight: 16 }}>
-          {isStudent ? (
-            <>
-              <DashCard title="Simulados Feitos" value={examResults.length.toString()} subtitle="Total realizado" icon="trophy" color="green" />
-              <DashCard title="Média Geral" value={`${averageScore}%`} subtitle="Pontuação média" icon="chart-line" color="indigo" />
-              <DashCard title="Último Score" value={examResults.length > 0 ? `${examResults[0].score.toFixed(1)}%` : '0%'} subtitle="Simulado mais recente" icon="trending-up" color="blue" />
-            </>
-          ) : (
-            <>
-              <DashCard title="Status" value="Ativo" subtitle="Sistema operacional" icon="check-circle" color="green" />
-              <DashCard title="Painel Admin" value="Ativo" subtitle="Gestão completa" icon="shield-account" color="indigo" />
-            </>
-          )}
-        </View>
-      </ScrollView>
-
-      {/* BOTÃO PRINCIPAL - SIMULADOR */}
-      <Card style={styles.simulatorCard}>
-        <Card.Content style={styles.simulatorCardContent}>
-          <View style={{ flex: 1 }}>
-            <Text variant="titleLarge" style={styles.simulatorTitle}>🎓 Simulador de Exames</Text>
-            <Text variant="bodyMedium" style={styles.simulatorSubtitle}>
-              Pratique com até 10 perguntas por exame dos exames reais das universidades.
-            </Text>
+      {/* Ações Rápidas */}
+      <View style={styles.quickActions}>
+        <TouchableOpacity 
+          style={[styles.quickAction, { backgroundColor: colors.white, borderRadius: borderRadius.xl, ...shadows.small }]}
+          onPress={() => navigation.navigate('EnhancedSimulator')}
+        >
+          <View style={[styles.quickActionIcon, { backgroundColor: colors.secondary }]}>
+            <Text style={styles.quickActionEmoji}>📝</Text>
           </View>
-          <Button
-            mode="contained"
-            onPress={() => navigation.navigate('EnhancedSimulator')}
-            style={styles.simulatorButton}
-            contentStyle={{ paddingVertical: 8 }}
-          >
-            Iniciar Simulado
-          </Button>
-        </Card.Content>
-      </Card>
+          <Text style={[styles.quickActionLabel, { color: colors.textPrimary }]}>Simulador</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.quickAction, { backgroundColor: colors.white, borderRadius: borderRadius.xl, ...shadows.small }]}
+          onPress={() => navigation.navigate('Discounts')}
+        >
+          <View style={[styles.quickActionIcon, { backgroundColor: '#FFF0ED' }]}>
+            <Text style={styles.quickActionEmoji}>🎁</Text>
+          </View>
+          <Text style={[styles.quickActionLabel, { color: colors.textPrimary }]}>Descontos</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.quickAction, { backgroundColor: colors.white, borderRadius: borderRadius.xl, ...shadows.small }]}
+          onPress={() => navigation.navigate('Subscription')}
+        >
+          <View style={[styles.quickActionIcon, { backgroundColor: colors.successLight }]}>
+            <Text style={styles.quickActionEmoji}>👑</Text>
+          </View>
+          <Text style={[styles.quickActionLabel, { color: colors.textPrimary }]}>Premium</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.quickAction, { backgroundColor: colors.white, borderRadius: borderRadius.xl, ...shadows.small }]}
+          onPress={() => navigation.navigate('ExamHistory')}
+        >
+          <View style={[styles.quickActionIcon, { backgroundColor: colors.infoLight }]}>
+            <Text style={styles.quickActionEmoji}>�</Text>
+          </View>
+          <Text style={[styles.quickActionLabel, { color: colors.textPrimary }]}>Histórico</Text>
+        </TouchableOpacity>
+      </View>
 
-      {/* Histórico Recente (apenas para estudantes) */}
-      {isStudent && examResults.length > 0 ? (
-        <Card style={styles.sectionCard}>
-          <Card.Content>
-            <Text variant="titleMedium" style={styles.sectionTitle}>📊 Histórico Recente</Text>
-            {examResults.slice(0, 3).map((result: any) => (
-              <View key={result.id} style={styles.resultRow}>
-                <View style={styles.resultIconBox}>
-                  <Text style={styles.resultScore}>{(result.score || 0).toFixed(1)}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text variant="bodyMedium" style={{ fontWeight: '700', color: '#111827' }}>
-                    {result.examName || 'Simulado'}
-                  </Text>
-                  <Text variant="labelSmall" style={{ color: '#9ca3af' }}>
-                    {new Date(result.date).toLocaleDateString('pt-PT')} • {result.correctAnswers || 0}/{result.totalQuestions || 0} acertos
-                  </Text>
+      {/* Estatísticas */}
+      <View style={styles.statsSection}>
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Estatísticas</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={styles.statsRow}>
+            {isStudent ? (
+              <>
+                <DashCard title="Simulados Feitos" value={examResults.length.toString()} subtitle="Total realizado" icon="trophy" color="green" />
+                <DashCard title="Média Geral" value={`${averageScore}%`} subtitle="Pontuação média" icon="chart-line" color="blue" />
+                <DashCard title="Último Score" value={examResults.length > 0 ? `${examResults[0].score.toFixed(1)}%` : '0%'} subtitle="Simulado mais recente" icon="trending-up" color="orange" />
+              </>
+            ) : (
+              <>
+                <DashCard title="Status" value="Ativo" subtitle="Sistema operacional" icon="check-circle" color="green" />
+                <DashCard title="Painel Admin" value="Ativo" subtitle="Gestão completa" icon="shield-account" color="blue" />
+              </>
+            )}
+          </View>
+        </ScrollView>
+      </View>
+
+      {/* Menu de Funcionalidades */}
+      <View style={styles.menuSection}>
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Funcionalidades</Text>
+        <Card style={[styles.menuCard, { backgroundColor: colors.white, borderRadius: borderRadius.xl, ...shadows.small }]}>
+          <Card.Content style={styles.menuContent}>
+            <TouchableOpacity 
+              style={styles.menuItem}
+              onPress={() => navigation.navigate('ExamHistory')}
+            >
+              <View style={styles.menuItemLeft}>
+                <Text style={styles.menuIcon}>📊</Text>
+                <View>
+                  <Text style={[styles.menuItemTitle, { color: colors.textPrimary }]}>Histórico de Exames</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: colors.textSecondary }]}>Ver todos os simulados</Text>
                 </View>
               </View>
-            ))}
-          </Card.Content>
-        </Card>
-      ) : isStudent && (
-        <Card style={styles.sectionCard}>
-          <Card.Content style={{ alignItems: 'center', padding: 24 }}>
-            <Text style={{ fontSize: 40, marginBottom: 12 }}>🎯</Text>
-            <Text variant="titleMedium" style={{ fontWeight: '700', color: '#111827', marginBottom: 4, textAlign: 'center' }}>
-              Comece sua jornada!
-            </Text>
-            <Text variant="bodyMedium" style={{ color: '#6b7280', textAlign: 'center' }}>
-              Faça seu primeiro simulado para ver seu histórico aqui.
-            </Text>
-          </Card.Content>
-        </Card>
-      )}
+              <Text style={[styles.menuArrow, { color: colors.textTertiary }]}>›</Text>
+            </TouchableOpacity>
 
-      {/* CTA para estudantes */}
-      {isStudent && (
-        <Card style={styles.ctaCard}>
-          <Card.Content style={styles.ctaContent}>
-            <View style={{ flex: 1 }}>
-              <Text variant="titleLarge" style={{ fontWeight: '800', color: '#fff', marginBottom: 8 }}>
-                🎯 Prepare-se para o Exame de Admissão!
-              </Text>
-              <Text variant="bodyMedium" style={{ color: 'rgba(255,255,255,0.8)' }}>
-                Pratique regularmente com os simulados para aumentar suas chances de aprovação.
-              </Text>
-            </View>
-            <TouchableOpacity style={styles.ctaButton} onPress={() => navigation.navigate('EnhancedSimulator')}>
-              <Text style={{ color: '#4f46e5', fontWeight: '800', fontSize: 16 }}>Começar Agora</Text>
+            <TouchableOpacity 
+              style={styles.menuItem}
+              onPress={() => navigation.navigate('AcademicSetup')}
+            >
+              <View style={styles.menuItemLeft}>
+                <Text style={styles.menuIcon}>🎓</Text>
+                <View>
+                  <Text style={[styles.menuItemTitle, { color: colors.textPrimary }]}>Configuração Acadêmica</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: colors.textSecondary }]}>Curso e disciplinas</Text>
+                </View>
+              </View>
+              <Text style={[styles.menuArrow, { color: colors.textTertiary }]}>›</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.menuItem}
+              onPress={() => navigation.navigate('Discounts')}
+            >
+              <View style={styles.menuItemLeft}>
+                <Text style={styles.menuIcon}>🎁</Text>
+                <View>
+                  <Text style={[styles.menuItemTitle, { color: colors.textPrimary }]}>Descontos e Bônus</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: colors.textSecondary }]}>Códigos de referral</Text>
+                </View>
+              </View>
+              <Text style={[styles.menuArrow, { color: colors.textTertiary }]}>›</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.menuItem}
+              onPress={() => navigation.navigate('Subscription')}
+            >
+              <View style={styles.menuItemLeft}>
+                <Text style={styles.menuIcon}>👑</Text>
+                <View>
+                  <Text style={[styles.menuItemTitle, { color: colors.textPrimary }]}>Subscrição Premium</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: colors.textSecondary }]}>Planos e benefícios</Text>
+                </View>
+              </View>
+              <Text style={[styles.menuArrow, { color: colors.textTertiary }]}>›</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.menuItem, { borderBottomWidth: 0 }]}
+              onPress={() => setShowLogoutModal(true)}
+            >
+              <View style={styles.menuItemLeft}>
+                <Text style={styles.menuIcon}>🚪</Text>
+                <View>
+                  <Text style={[styles.menuItemTitle, { color: colors.error }]}>Terminar Sessão</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: colors.textSecondary }]}>Sair da conta</Text>
+                </View>
+              </View>
+              <Text style={[styles.menuArrow, { color: colors.textTertiary }]}>›</Text>
             </TouchableOpacity>
           </Card.Content>
         </Card>
-      )}
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#f9fafb' },
-  content: { padding: 16, paddingBottom: 32 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 },
-  greeting: { fontWeight: '800', color: '#111827' },
-  countdownCard: { backgroundColor: '#fef3c7', borderRadius: 20, elevation: 0, borderWidth: 1, borderColor: '#fde68a', marginBottom: 16 },
-  countdownIcon: { width: 48, height: 48, borderRadius: 12, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
-  dashCard: { width: 180, backgroundColor: '#fff', borderRadius: 20, elevation: 0, borderWidth: 1, borderColor: '#f3f4f6' },
-  dashCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  dashIconBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  dashCardLabel: { color: '#9ca3af', letterSpacing: 1, fontWeight: '700', textTransform: 'uppercase' },
-  dashCardValue: { fontWeight: '800', color: '#111827' },
-  simulatorCard: { backgroundColor: '#4f46e5', borderRadius: 20, elevation: 4, marginBottom: 16 },
-  simulatorCardContent: { padding: 20 },
-  simulatorTitle: { fontWeight: '800', color: '#fff', fontSize: 20, marginBottom: 8 },
-  simulatorSubtitle: { color: 'rgba(255,255,255,0.8)', fontSize: 14, marginBottom: 16 },
-  simulatorButton: { backgroundColor: '#fff', borderRadius: 12 },
-  sectionCard: { backgroundColor: '#fff', borderRadius: 20, elevation: 0, borderWidth: 1, borderColor: '#f3f4f6', marginBottom: 16 },
-  sectionTitle: { fontWeight: '800', color: '#111827', marginBottom: 16 },
-  resultRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f9fafb' },
-  resultIconBox: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
-  resultScore: { fontSize: 18, fontWeight: '800', color: '#4f46e5' },
-  ctaCard: { backgroundColor: '#4f46e5', borderRadius: 20, elevation: 4, marginTop: 8 },
-  ctaContent: { flexDirection: 'column', gap: 16, padding: 8 },
-  ctaButton: { backgroundColor: '#fff', paddingVertical: 16, paddingHorizontal: 32, borderRadius: 16, alignItems: 'center', alignSelf: 'flex-start' },
+  screen: { flex: 1, backgroundColor: colors.background },
+  content: { padding: spacing.lg, paddingBottom: 32 },
+  
+  // App Title
+  appTitle: { marginBottom: spacing.lg },
+  appTitleText: { fontSize: 24, fontWeight: '800', letterSpacing: 0.3 },
+  appSubtitle: { fontSize: 11, fontWeight: '400', marginTop: 2, letterSpacing: 0.5, textTransform: 'uppercase' },
+  
+  // Header estilo Yango
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xl },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  profilePhoto: { width: 40, height: 40, borderRadius: borderRadius.round, alignItems: 'center', justifyContent: 'center' },
+  profileInitial: { fontSize: 16, fontWeight: '700', color: colors.info },
+  userInfo: { flex: 1 },
+  userName: { fontSize: 15, fontWeight: '700', marginBottom: 2 },
+  userPhone: { fontSize: 12, fontWeight: '400' },
+  headerActions: { flexDirection: 'row', gap: spacing.sm },
+  headerAction: { width: 44, height: 44, borderRadius: borderRadius.md, backgroundColor: colors.grayLight, alignItems: 'center', justifyContent: 'center', minWidth: 44, minHeight: 44 },
+  headerActionIcon: { fontSize: 20 },
+  
+  // Countdown Card
+  countdownCard: { marginBottom: spacing.lg },
+  countdownContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  countdownLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  countdownIcon: { width: 40, height: 40, borderRadius: borderRadius.md, alignItems: 'center', justifyContent: 'center' },
+  countdownLabel: { fontSize: 11, fontWeight: '400', marginBottom: 2 },
+  countdownValue: { fontSize: 18, fontWeight: '700' },
+  countdownAction: { fontSize: 14, fontWeight: '600' },
+  
+  // Quick Actions
+  quickActions: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.xl },
+  quickAction: { flex: 1, alignItems: 'center', padding: spacing.md, marginHorizontal: 4 },
+  quickActionIcon: { width: 40, height: 40, borderRadius: borderRadius.md, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
+  quickActionEmoji: { fontSize: 20 },
+  quickActionLabel: { fontSize: 11, fontWeight: '600' },
+  
+  // Stats Section
+  statsSection: { marginBottom: spacing.xl },
+  sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: spacing.md },
+  statsRow: { flexDirection: 'row', gap: spacing.md, paddingRight: spacing.lg },
+  
+  // Dash Card
+  dashCard: { width: 160, padding: spacing.md },
+  dashCardContent: { padding: 0 },
+  dashCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
+  dashIconBox: { width: 32, height: 32, borderRadius: borderRadius.md, alignItems: 'center', justifyContent: 'center' },
+  dashCardLabel: { fontSize: 11, fontWeight: '400' },
+  dashCardValue: { fontSize: 20, fontWeight: '700', marginBottom: 2 },
+  dashCardSubtitle: { fontSize: 10, fontWeight: '400' },
+  
+  // Menu Section
+  menuSection: { marginBottom: spacing.xl },
+  menuCard: { elevation: 0, borderWidth: 1, borderColor: colors.borderLight },
+  menuContent: { padding: 0 },
+  menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.md, paddingHorizontal: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.borderLight },
+  menuItemLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, flex: 1 },
+  menuIcon: { fontSize: 20 },
+  menuItemTitle: { fontSize: 16, fontWeight: '600', marginBottom: 2 },
+  menuItemSubtitle: { fontSize: 12, fontWeight: '400' },
+  menuArrow: { fontSize: 24, fontWeight: '300' },
 });

@@ -15,13 +15,14 @@ const SUBJECTS = ['Matemática', 'Física', 'Química', 'Biologia', 'Português'
 
 export default function OnboardingScreen() {
   const navigation = useNavigation<Nav>();
-  const { updateUser } = useAuthStore();
+  const { updateUser, user } = useAuthStore();
   const [step, setStep] = useState(1);
   const [selectedInstitution, setSelectedInstitution] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('');
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [examDate, setExamDate] = useState('');
   const [saving, setSaving] = useState(false);
+  const totalSteps = 4;
 
   const toggleSubject = (subject: string) => {
     if (selectedSubjects.includes(subject)) {
@@ -32,11 +33,13 @@ export default function OnboardingScreen() {
   };
 
   const handleNext = async () => {
-    if (step === 1 && selectedCourse) {
+    if (step === 1) {
       setStep(2);
-    } else if (step === 2 && selectedSubjects.length > 0) {
+    } else if (step === 2 && selectedCourse) {
       setStep(3);
-    } else if (step === 3 && examDate) {
+    } else if (step === 3 && selectedSubjects.length > 0) {
+      setStep(4);
+    } else if (step === 4 && examDate) {
       // Salvar dados no perfil do usuário
       setSaving(true);
       try {
@@ -44,10 +47,10 @@ export default function OnboardingScreen() {
           intendedCourse: selectedCourse,
           competingDisciplines: selectedSubjects,
         });
-        
+
         // Salvar data do exame no AsyncStorage
         await AsyncStorage.setItem('user_exam_date', examDate);
-        
+
         // Navegar para o Main (Dashboard)
         navigation.reset({
           index: 0,
@@ -69,7 +72,18 @@ export default function OnboardingScreen() {
 
   const renderStep1 = () => (
     <View style={styles.stepContainer}>
-      <Text variant="titleLarge" style={styles.stepTitle}>Passo 1 de 3</Text>
+      <Text style={{ fontSize: 64, marginBottom: 20 }}>🎓</Text>
+      <Text variant="headlineMedium" style={styles.stepTitle}>Bem-vindo ao EduPrep!</Text>
+      <Text variant="bodyMedium" style={styles.stepSubtitle}>
+        Vamos personalizar a tua experiência para te ajudar a preparar o teu exame de admissão.
+      </Text>
+      <View style={styles.welcomeFeatures}><View style={styles.featureItem}><Text style={styles.featureIcon}>📚</Text><Text style={styles.featureText}>Simulados realistas</Text></View><View style={styles.featureItem}><Text style={styles.featureIcon}>🎯</Text><Text style={styles.featureText}>Questões explicadas</Text></View><View style={styles.featureItem}><Text style={styles.featureIcon}>📊</Text><Text style={styles.featureText}>Acompanhamento de progresso</Text></View></View>
+    </View>
+  );
+
+  const renderStep2 = () => (
+    <View style={styles.stepContainer}>
+      <Text variant="titleLarge" style={styles.stepTitle}>Passo 2 de 4</Text>
       <Text variant="bodyMedium" style={styles.stepSubtitle}>Selecione o curso que pretende fazer</Text>
       <View style={styles.chipsContainer}>
         {COURSES.map((course) => (
@@ -87,9 +101,9 @@ export default function OnboardingScreen() {
     </View>
   );
 
-  const renderStep2 = () => (
+  const renderStep3 = () => (
     <View style={styles.stepContainer}>
-      <Text variant="titleLarge" style={styles.stepTitle}>Passo 2 de 3</Text>
+      <Text variant="titleLarge" style={styles.stepTitle}>Passo 3 de 4</Text>
       <Text variant="bodyMedium" style={styles.stepSubtitle}>Selecione as disciplinas do seu exame ({selectedSubjects.length} selecionadas)</Text>
       <View style={styles.chipsContainer}>
         {SUBJECTS.map((subject) => (
@@ -107,9 +121,9 @@ export default function OnboardingScreen() {
     </View>
   );
 
-  const renderStep3 = () => (
+  const renderStep4 = () => (
     <View style={styles.stepContainer}>
-      <Text variant="titleLarge" style={styles.stepTitle}>Passo 3 de 3</Text>
+      <Text variant="titleLarge" style={styles.stepTitle}>Passo 4 de 4</Text>
       <Text variant="bodyMedium" style={styles.stepSubtitle}>Quando é o seu exame de admissão?</Text>
       <View style={styles.dateOptions}>
         {['Janeiro 2027', 'Fevereiro 2027', 'Março 2027', 'Abril 2027', 'Maio 2027', 'Junho 2027'].map((date) => (
@@ -141,14 +155,15 @@ export default function OnboardingScreen() {
       {/* Progress Bar */}
       <View style={styles.progressContainer}>
         <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: `${(step / 3) * 100}%` }]} />
+          <View style={[styles.progressFill, { width: `${(step / totalSteps) * 100}%` }]} />
         </View>
-        <Text style={styles.progressText}>{step}/3</Text>
+        <Text style={styles.progressText}>{step}/{totalSteps}</Text>
       </View>
 
       {step === 1 && renderStep1()}
       {step === 2 && renderStep2()}
       {step === 3 && renderStep3()}
+      {step === 4 && renderStep4()}
 
       <View style={styles.buttonContainer}>
         {step > 1 && (
@@ -162,12 +177,12 @@ export default function OnboardingScreen() {
           style={styles.button}
           loading={saving}
           disabled={
-            (step === 1 && !selectedCourse) ||
-            (step === 2 && selectedSubjects.length === 0) ||
-            (step === 3 && !examDate)
+            (step === 2 && !selectedCourse) ||
+            (step === 3 && selectedSubjects.length === 0) ||
+            (step === 4 && !examDate)
           }
         >
-          {step === 3 ? 'Concluir' : 'Próximo'}
+          {step === 4 ? 'Concluir' : 'Próximo'}
         </Button>
       </View>
 
@@ -208,6 +223,106 @@ const styles = StyleSheet.create({
     maxWidth: 320,
     marginBottom: 40,
   },
+  progressContainer: {
+    width: '100%',
+    maxWidth: 400,
+    marginBottom: 32,
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#4f46e5',
+  },
+  progressText: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  stepContainer: {
+    width: '100%',
+    maxWidth: 400,
+    marginBottom: 32,
+  },
+  stepTitle: {
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 8,
+  },
+  stepSubtitle: {
+    color: '#6b7280',
+    marginBottom: 20,
+  },
+  welcomeFeatures: {
+    marginTop: 24,
+  },
+  featureItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  featureIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  featureText: {
+    fontSize: 16,
+    color: '#374151',
+  },
+  chipsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    marginBottom: 8,
+  },
+  chipText: {
+    color: '#6b7280',
+  },
+  chipTextSelected: {
+    color: '#4f46e5',
+  },
+  dateOptions: {
+    flexDirection: 'column',
+    gap: 8,
+  },
+  dateOption: {
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#f3f4f6',
+    backgroundColor: '#fff',
+  },
+  dateOptionSelected: {
+    borderColor: '#4f46e5',
+    backgroundColor: '#eef2ff',
+  },
+  dateText: {
+    fontSize: 16,
+    color: '#374151',
+  },
+  dateTextSelected: {
+    color: '#4f46e5',
+    fontWeight: '600',
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+    maxWidth: 400,
+  },
+  button: {
+    flex: 1,
+  },
+  footer: {
+    marginTop: 32,
+  },
   optionsContainer: {
     width: '100%',
     maxWidth: 400,
@@ -242,92 +357,5 @@ const styles = StyleSheet.create({
   },
   optionDesc: {
     color: '#6b7280',
-  },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 40,
-  },
-  stepContainer: {
-    width: '100%',
-    maxWidth: 400,
-    marginBottom: 24,
-  },
-  stepTitle: {
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 8,
-  },
-  stepSubtitle: {
-    color: '#6b7280',
-    marginBottom: 16,
-  },
-  chipsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    marginBottom: 8,
-  },
-  chipText: {
-    color: '#374151',
-  },
-  chipTextSelected: {
-    color: '#4f46e5',
-    fontWeight: '700',
-  },
-  dateOptions: {
-    gap: 8,
-  },
-  dateOption: {
-    padding: 16,
-    borderRadius: 12,
-    backgroundColor: '#f9fafb',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  dateOptionSelected: {
-    backgroundColor: '#eef2ff',
-    borderColor: '#4f46e5',
-  },
-  dateText: {
-    fontSize: 16,
-    color: '#374151',
-    fontWeight: '600',
-  },
-  dateTextSelected: {
-    color: '#4f46e5',
-  },
-  progressContainer: {
-    width: '100%',
-    maxWidth: 400,
-    marginBottom: 24,
-  },
-  progressBar: {
-    height: 8,
-    backgroundColor: '#e5e7eb',
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#4f46e5',
-  },
-  progressText: {
-    fontSize: 12,
-    color: '#6b7280',
-    textAlign: 'right',
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    width: '100%',
-    maxWidth: 400,
-    marginBottom: 16,
-  },
-  button: {
-    flex: 1,
   },
 });

@@ -104,17 +104,7 @@ export default function ExamReviewScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={{ fontSize: 24, color: '#4f46e5' }}>←</Text>
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text variant="headlineSmall" style={styles.title}>Revisão do Simulado</Text>
-          <Text variant="bodyMedium" style={{ color: '#6b7280' }}>
-            {result.examName || result.subject || 'Simulado'}
-          </Text>
-        </View>
-      </View>
+      <View style={styles.header}><TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}><Text style={{ fontSize: 24, color: '#4f46e5' }}>←</Text></TouchableOpacity><View style={{ flex: 1 }}><Text variant="headlineSmall" style={styles.title}>Revisão do Simulado</Text><Text variant="bodyMedium" style={{ color: '#6b7280' }}>{result.examName || result.subject || 'Simulado'}</Text></View></View>
 
       {/* Score Card */}
       <Card style={[styles.scoreCard, { backgroundColor: getScoreBg(result.score) }]}>

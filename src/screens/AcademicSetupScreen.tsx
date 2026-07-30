@@ -3,6 +3,7 @@ import { View, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-nat
 import { Text, Card, Button, Chip } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../store/authStore';
+import { colors, spacing, borderRadius, shadows } from '../theme/colors';
 
 const COURSES = [
   'Medicina',
@@ -72,32 +73,29 @@ export default function AcademicSetupScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      {/* Header estilo Yango */}
       <View style={styles.header}>
-        <TouchableOpacity 
-          onPress={() => navigation.goBack()} 
-          style={styles.backButton}
-        >
-          <Text style={{ fontSize: 24, color: '#4f46e5' }}>←</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text variant="headlineSmall" style={styles.title}>Configuração Acadêmica</Text>
-          <Text variant="bodySmall" style={styles.subtitle}>
-            Configure seu curso e disciplinas para simulados personalizados
+        <View style={styles.headerContent}>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Configuração Acadêmica</Text>
+          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+            Configure o teu curso e disciplinas
           </Text>
         </View>
       </View>
 
       {/* Curso Pretendido */}
-      <Card style={styles.card}>
-        <Card.Content>
+      <Card style={[styles.card, { backgroundColor: colors.white, borderRadius: borderRadius.xl, ...shadows.small }]}>
+        <Card.Content style={styles.cardContent}>
           <View style={styles.sectionHeader}>
-            <Text style={{ fontSize: 24, marginRight: 8 }}>🎓</Text>
-            <Text variant="titleMedium" style={styles.sectionTitle}>Curso Pretendido</Text>
+            <Text style={{ fontSize: 24, marginRight: spacing.sm }}>🎓</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Curso Pretendido</Text>
           </View>
-          <Text variant="bodySmall" style={styles.sectionDesc}>
-            Selecione o curso que pretende ingressar
+          <Text style={[styles.sectionDesc, { color: colors.textSecondary }]}>
+            Selecione o curso que pretendes ingressar
           </Text>
-          
           <View style={styles.chipsContainer}>
             {COURSES.map((course) => (
               <Chip
@@ -106,9 +104,9 @@ export default function AcademicSetupScreen() {
                 onPress={() => setSelectedCourse(course)}
                 style={[
                   styles.chip,
-                  selectedCourse === course && styles.chipSelected
+                  selectedCourse === course && { backgroundColor: colors.secondary, borderColor: colors.primary }
                 ]}
-                textStyle={selectedCourse === course ? styles.chipTextSelected : styles.chipText}
+                textStyle={selectedCourse === course ? { color: colors.primary, fontWeight: '700' } : { color: colors.textSecondary, fontWeight: '600' }}
               >
                 {course}
               </Chip>
@@ -118,16 +116,12 @@ export default function AcademicSetupScreen() {
       </Card>
 
       {/* Disciplinas */}
-      <Card style={styles.card}>
-        <Card.Content>
-          <View style={styles.sectionHeader}>
-            <Text style={{ fontSize: 24, marginRight: 8 }}>📚</Text>
-            <Text variant="titleMedium" style={styles.sectionTitle}>Disciplinas de Exame</Text>
-          </View>
-          <Text variant="bodySmall" style={styles.sectionDesc}>
-            Selecione as disciplinas que cairão no seu exame ({selectedSubjects.length} selecionadas)
+      <Card style={[styles.card, { backgroundColor: colors.white, borderRadius: borderRadius.xl, ...shadows.small }]}>
+        <Card.Content style={styles.cardContent}>
+          <View style={styles.sectionHeader}><Text style={{ fontSize: 24, marginRight: spacing.sm }}>📚</Text><Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Disciplinas de Exame</Text></View>
+          <Text style={[styles.sectionDesc, { color: colors.textSecondary }]}>
+            Selecione as disciplinas que cairão no teu exame ({selectedSubjects.length} selecionadas)
           </Text>
-          
           <View style={styles.chipsContainer}>
             {SUBJECTS.map((subject) => (
               <Chip
@@ -136,9 +130,9 @@ export default function AcademicSetupScreen() {
                 onPress={() => toggleSubject(subject)}
                 style={[
                   styles.chip,
-                  selectedSubjects.includes(subject) && styles.chipSelectedSubject
+                  selectedSubjects.includes(subject) && { backgroundColor: colors.successLight, borderColor: colors.success }
                 ]}
-                textStyle={selectedSubjects.includes(subject) ? styles.chipTextSelected : styles.chipText}
+                textStyle={selectedSubjects.includes(subject) ? { color: colors.success, fontWeight: '700' } : { color: colors.textSecondary, fontWeight: '600' }}
               >
                 {subject}
               </Chip>
@@ -149,18 +143,18 @@ export default function AcademicSetupScreen() {
 
       {/* Resumo */}
       {selectedCourse && selectedSubjects.length > 0 && (
-        <Card style={[styles.card, { backgroundColor: '#f0fdf4', borderColor: '#10b981' }]}>
-          <Card.Content>
+        <Card style={[styles.card, { backgroundColor: colors.successLight, borderColor: colors.success, borderRadius: borderRadius.xl }]}>
+          <Card.Content style={styles.cardContent}>
             <View style={styles.sectionHeader}>
-              <Text style={{ fontSize: 24, marginRight: 8 }}>✅</Text>
-              <Text variant="titleMedium" style={[styles.sectionTitle, { color: '#10b981' }]}>
+              <Text style={{ fontSize: 24, marginRight: spacing.sm }}>✅</Text>
+              <Text style={[styles.sectionTitle, { color: colors.success }]}>
                 Configuração Atual
               </Text>
             </View>
-            <Text style={{ color: '#166534', marginBottom: 8 }}>
+            <Text style={{ color: colors.success, marginBottom: spacing.sm }}>
               <Text style={{ fontWeight: '700' }}>Curso:</Text> {selectedCourse}
             </Text>
-            <Text style={{ color: '#166534' }}>
+            <Text style={{ color: colors.success }}>
               <Text style={{ fontWeight: '700' }}>Disciplinas:</Text> {selectedSubjects.join(', ')}
             </Text>
           </Card.Content>
@@ -173,9 +167,9 @@ export default function AcademicSetupScreen() {
         onPress={handleSave}
         loading={saving}
         disabled={saving || !selectedCourse || selectedSubjects.length === 0}
-        style={styles.saveButton}
+        style={[styles.saveButton, { backgroundColor: colors.primary, borderRadius: borderRadius.md }]}
         labelStyle={styles.saveButtonLabel}
-        contentStyle={{ paddingVertical: 8 }}
+        contentStyle={{ paddingVertical: spacing.sm }}
       >
         Salvar Configuração
       </Button>
@@ -186,83 +180,86 @@ export default function AcademicSetupScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: colors.background,
   },
   content: {
-    padding: 16,
-    paddingBottom: 32,
+    padding: spacing.lg,
+    paddingBottom: spacing.xl,
   },
+  
+  // Header estilo Yango
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   backButton: {
-    margin: 0,
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.grayLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
   },
-  title: {
-    fontWeight: '800',
-    color: '#111827',
+  backIcon: {
+    fontSize: 24,
+    color: colors.textPrimary,
   },
-  subtitle: {
-    color: '#6b7280',
-    marginTop: 4,
+  headerContent: {
+    flex: 1,
   },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    fontWeight: '400',
+  },
+  
+  // Cards
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    marginBottom: 16,
-    elevation: 0,
-    borderWidth: 1,
-    borderColor: '#f3f4f6',
+    marginBottom: spacing.lg,
   },
+  cardContent: {
+    padding: spacing.lg,
+  },
+  
+  // Section
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
+    marginBottom: spacing.md,
   },
   sectionTitle: {
+    fontSize: 16,
     fontWeight: '700',
-    color: '#111827',
   },
   sectionDesc: {
-    color: '#6b7280',
-    marginBottom: 16,
+    fontSize: 13,
+    marginBottom: spacing.md,
   },
+  
+  // Chips
   chipsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: spacing.sm,
   },
   chip: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.grayLight,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.borderLight,
   },
-  chipSelected: {
-    backgroundColor: '#eef2ff',
-    borderColor: '#4f46e5',
-  },
-  chipSelectedSubject: {
-    backgroundColor: '#ecfdf5',
-    borderColor: '#10b981',
-  },
-  chipText: {
-    color: '#6b7280',
-    fontWeight: '600',
-  },
-  chipTextSelected: {
-    color: '#111827',
-    fontWeight: '700',
-  },
+  
+  // Save Button
   saveButton: {
-    backgroundColor: '#4f46e5',
-    borderRadius: 16,
-    marginTop: 8,
+    marginTop: spacing.lg,
   },
   saveButtonLabel: {
-    fontWeight: '800',
+    fontWeight: '700',
     fontSize: 16,
   },
 });

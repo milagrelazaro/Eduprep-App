@@ -8,7 +8,7 @@ interface AuthState {
   isLoading: boolean;
   setUser: (user: User | null) => void;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string, role: UserRole, intendedCourse?: string, competingDisciplines?: string[]) => Promise<void>;
+  register: (email: string, password: string, name: string, role: UserRole, intendedCourse?: string, competingDisciplines?: string[], referralCode?: string) => Promise<void>;
   logout: () => Promise<void>;
   loadUser: () => Promise<void>;
   updateUser: (updates: Partial<User>) => Promise<void>;
@@ -52,14 +52,15 @@ export const useAuthStore = create<AuthState>((set) => ({
     name: string,
     role: UserRole,
     intendedCourse?: string,
-    competingDisciplines?: string[]
+    competingDisciplines?: string[],
+    referralCode?: string
   ) => {
     set({ isLoading: true });
 
     try {
       const normalizedEmail = email.trim().toLowerCase();
       let finalRole = role;
-      
+
       // Admin override
       if (normalizedEmail === 'admin@eduprep.co.mz' || normalizedEmail === 'admin@eduprep.com') {
         finalRole = UserRole.ADMIN;
@@ -71,6 +72,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       const userData = await authService.signUp(normalizedEmail, password, displayName, finalRole, {
         intendedCourse,
         competingDisciplines,
+        referralCode,
       });
 
       // Persist locally for offline use

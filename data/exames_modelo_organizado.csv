@@ -1,0 +1,57 @@
+═══════════════════════════════════════════════════════════════════════════════
+MODELO DE EXAMES - SIMULAPASS
+═══════════════════════════════════════════════════════════════════════════════
+
+INSTRUÇÕES:
+1. Preencha as células abaixo com os dados dos exames
+2. Cada linha representa uma QUESTÃO
+3. Os campos do EXAME (instituição, disciplina, etc.) se repetem para cada questão do mesmo exame
+4. NÃO altere a linha de cabeçalho (linha 18)
+5. Salve como CSV (UTF-8) antes de importar
+6. Use o script: npx ts-node scripts/importExamsFromCSV.ts data/exames_modelo_organizado.csv
+
+═══════════════════════════════════════════════════════════════════════════════
+CABEÇALHO (NÃO ALTERAR ESTA LINHA)
+═══════════════════════════════════════════════════════════════════════════════
+
+institution,subject,year,duration,status,topic,question_text,option_a,option_b,option_c,option_d,correct_option,explanation,correct_feedback,incorrect_feedback,learn_more_url
+
+═══════════════════════════════════════════════════════════════════════════════
+EXEMPLO 1: EXAME DE MATEMÁTICA - UEM 2024 (3 questões)
+═══════════════════════════════════════════════════════════════════════════════
+
+UEM,Matemática,2024,90,approved,Álgebra,Qual é o valor de x na equação 2x + 5 = 15?,5,10,7.5,3,0,"Para resolver: 2x + 5 = 15 → 2x = 10 → x = 5","Correto! Você isolou a variável corretamente.","Incorreto. Lembre-se de isolar x subtraindo 5 de ambos os lados.",
+UEM,Matemática,2024,90,approved,Álgebra,Qual é a raiz quadrada de 144?,10,12,14,16,1,"12 × 12 = 144","Excelente! Você conhece as raízes quadradas.","Incorreto. 12 × 12 = 144.",
+UEM,Matemática,2024,90,approved,Geometria,Qual é a área de um quadrado com lado de 5cm?,10cm²,15cm²,20cm²,25cm²,3,"Área = lado × lado = 5 × 5 = 25cm²","Perfeito! Fórmula da área aplicada corretamente.","Incorreto. A área do quadrado é lado ao quadrado.",
+
+═══════════════════════════════════════════════════════════════════════════════
+EXEMPLO 2: EXAME DE FÍSICA - UP 2024 (2 questões)
+═══════════════════════════════════════════════════════════════════════════════
+
+UP,Física,2024,90,approved,Mecânica,Qual é a fórmula da força?,"F = m × a","F = m × v","F = m × g","F = p × v",0,"Segunda Lei de Newton: Força = massa × aceleração","Correto! Você domina as leis de Newton.","Incorreto. Lembre-se da Segunda Lei de Newton.",
+UP,Física,2024,90,approved,Mecânica,Qual é a unidade de força no SI?,Newton,Joule,Watt,Pascal,0,"Newton (N) é a unidade de força no Sistema Internacional","Excelente! Você conhece as unidades do SI.","Incorreto. A unidade de força é Newton.",
+
+═══════════════════════════════════════════════════════════════════════════════
+SEUS EXAMES (PREENCHA ABAIXO)
+═══════════════════════════════════════════════════════════════════════════════
+
+,,,,,,,,,,,,
+,,,,,,,,,,,,
+,,,,,,,,,,,,
+,,,,,,,,,,,,
+,,,,,,,,,,,,
+,,,,,,,,,,,,
+,,,,,,,,,,,,
+,,,,,,,,,,,,
+,,,,,,,,,,,,
+,,,,,,,,,,,,
+,,,,,,,,,,,,
+,,,,,,,,,,,,
+,,,,,,,,,,,,
+,,,,,,,,,,,,
+,,,,,,,,,,,,
+,,,,,,,,,,,,
+,,,,,,,,,,,,
+,,,,,,,,,,,,
+,,,,,,,,,,,,
+,,,,,,,,,,,,
