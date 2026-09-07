@@ -7,7 +7,6 @@
     "rules": "storage.rules"
   },
   "hosting": {
-    "site": "fitness-app-realtime",
     "public": "dist",
     "ignore": [
       "firebase.json",
