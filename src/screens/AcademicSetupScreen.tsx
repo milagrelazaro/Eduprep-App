@@ -5,6 +5,15 @@ import { useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../store/authStore';
 import { colors, spacing, borderRadius, shadows } from '../theme/colors';
 
+const INSTITUTIONS = [
+  'UEM',
+  'UP',
+  'UCM',
+  'ISCTEM',
+  'Unilúrio',
+  'Universidade Zambeze',
+];
+
 const COURSES = [
   'Medicina',
   'Engenharia',
@@ -31,6 +40,7 @@ export default function AcademicSetupScreen() {
   const navigation = useNavigation();
   const { user, updateUser } = useAuthStore();
   
+  const [selectedInstitution, setSelectedInstitution] = useState(user?.intendedInstitution || '');
   const [selectedCourse, setSelectedCourse] = useState(user?.intendedCourse || '');
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>(user?.competingDisciplines || []);
   const [saving, setSaving] = useState(false);
@@ -44,6 +54,11 @@ export default function AcademicSetupScreen() {
   };
 
   const handleSave = async () => {
+    if (!selectedInstitution) {
+      Alert.alert('Atenção', 'Selecione a instituição');
+      return;
+    }
+
     if (!selectedCourse) {
       Alert.alert('Atenção', 'Selecione o curso pretendido');
       return;
@@ -57,6 +72,7 @@ export default function AcademicSetupScreen() {
     setSaving(true);
     try {
       await updateUser({
+        intendedInstitution: selectedInstitution,
         intendedCourse: selectedCourse,
         competingDisciplines: selectedSubjects,
       });
@@ -85,6 +101,35 @@ export default function AcademicSetupScreen() {
           </Text>
         </View>
       </View>
+
+      {/* Instituição */}
+      <Card style={[styles.card, { backgroundColor: colors.white, borderRadius: borderRadius.xl, ...shadows.small }]}>
+        <Card.Content style={styles.cardContent}>
+          <View style={styles.sectionHeader}>
+            <Text style={{ fontSize: 24, marginRight: spacing.sm }}>🏛️</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Instituição</Text>
+          </View>
+          <Text style={[styles.sectionDesc, { color: colors.textSecondary }]}>
+            Selecione a universidade/instituição para o exame
+          </Text>
+          <View style={styles.chipsContainer}>
+            {INSTITUTIONS.map((institution) => (
+              <Chip
+                key={institution}
+                selected={selectedInstitution === institution}
+                onPress={() => setSelectedInstitution(institution)}
+                style={[
+                  styles.chip,
+                  selectedInstitution === institution && { backgroundColor: colors.secondary, borderColor: colors.primary }
+                ]}
+                textStyle={selectedInstitution === institution ? { color: colors.primary, fontWeight: '700' } : { color: colors.textSecondary, fontWeight: '600' }}
+              >
+                {institution}
+              </Chip>
+            ))}
+          </View>
+        </Card.Content>
+      </Card>
 
       {/* Curso Pretendido */}
       <Card style={[styles.card, { backgroundColor: colors.white, borderRadius: borderRadius.xl, ...shadows.small }]}>

@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="pt-MZ">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SimulaPass — Apresentação</title>
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-dark: #3730a3;
+      --accent: #f59e0b;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --bg: #f8fafc;
+      --white: #ffffff;
+      --radius: 18px;
+      --shadow: 0 10px 40px rgba(79, 70, 229, 0.12);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto;
+      padding: 18mm;
+      background: var(--white);
+      position: relative;
+      overflow: hidden;
+      page-break-after: always;
+      break-after: page;
+    }
+
+    .page:last-child {
+      page-break-after: auto;
+    }
+
+    /* Cover */
+    .cover {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4f46e5 100%);
+      color: var(--white);
+    }
+
+    .cover .badge {
+      background: rgba(255, 255, 255, 0.15);
+      padding: 10px 24px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 32px;
+      backdrop-filter: blur(4px);
+    }
+
+    .cover h1 {
+      font-size: 72px;
+      font-weight: 800;
+      line-height: 1.05;
+      margin-bottom: 18px;
+      letter-spacing: -2px;
+    }
+
+    .cover h1 span {
+      color: #fbbf24;
+    }
+
+    .cover p {
+      font-size: 22px;
+      max-width: 520px;
+      opacity: 0.9;
+      margin-bottom: 40px;
+    }
+
+    .cover .cta-row {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 32px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 16px;
+      text-decoration: none;
+      transition: transform 0.2s;
+    }
+
+    .btn-primary {
+      background: #fbbf24;
+      color: #1e1b4b;
+    }
+
+    .btn-outline {
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      color: var(--white);
+    }
+
+    .cover-footer {
+      position: absolute;
+      bottom: 24mm;
+      opacity: 0.7;
+      font-size: 13px;
+    }
+
+    /* Typography */
+    h2 {
+      font-size: 38px;
+      font-weight: 800;
+      color: var(--primary-dark);
+      margin-bottom: 18px;
+      line-height: 1.2;
+    }
+
+    h3 {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--primary-dark);
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      font-size: 18px;
+      color: var(--muted);
+      margin-bottom: 36px;
+      max-width: 640px;
+    }
+
+    p {
+      margin-bottom: 16px;
+    }
+
+    /* Layout */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 36px;
+      align-items: center;
+    }
+
+    .three-col {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 22px;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--white);
+      border: 1px solid #e2e8f0;
+      border-radius: var(--radius);
+      padding: 28px;
+      box-shadow: var(--shadow);
+    }
+
+    .card .icon {
+      width: 52px;
+      height: 52px;
+      background: linear-gradient(135deg, var(--primary), #7c3aed);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      margin-bottom: 18px;
+      color: white;
+    }
+
+    .stat-card {
+      text-align: center;
+      padding: 32px 20px;
+    }
+
+    .stat-card .number {
+      font-size: 46px;
+      font-weight: 800;
+      color: var(--primary);
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+
+    .stat-card .label {
+      font-size: 14px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Feature list */
+    .feature-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 12px;
+    }
+
+    .feature-item {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      padding: 16px;
+      background: #f1f5f9;
+      border-radius: 14px;
+    }
+
+    .feature-item .bullet {
+      width: 28px;
+      height: 28px;
+      flex-shrink: 0;
+      background: var(--primary);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .feature-item strong {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--primary-dark);
+    }
+
+    .feature-item span {
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    /* Pricing */
+    .pricing-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 24px;
+      font-size: 16px;
+    }
+
+    .pricing-table th,
+    .pricing-table td {
+      padding: 18px 20px;
+      text-align: left;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .pricing-table th {
+      background: var(--primary);
+      color: white;
+      font-weight: 700;
+    }
+
+    .pricing-table tr:nth-child(even) {
+      background: #f8fafc;
+    }
+
+    .pricing-table .price {
+      font-weight: 800;
+      color: var(--primary-dark);
+    }
+
+    /* How it works steps */
+    .steps {
+      display: flex;
+      gap: 18px;
+      margin-top: 30px;
+    }
+
+    .step {
+      flex: 1;
+      text-align: center;
+      padding: 22px;
+      background: #f8fafc;
+      border-radius: var(--radius);
+      border: 1px solid #e2e8f0;
+    }
+
+    .step .num {
+      width: 44px;
+      height: 44px;
+      background: var(--primary);
+      color: white;
+      font-weight: 800;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 14px;
+      font-size: 18px;
+    }
+
+    .step h4 {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--primary-dark);
+    }
+
+    .step p {
+      font-size: 14px;
+      color: var(--muted);
+      margin: 0;
+    }
+
+    /* Testimonial */
+    .quote {
+      background: #f1f5f9;
+      border-left: 5px solid var(--primary);
+      padding: 24px 28px;
+      border-radius: 0 14px 14px 0;
+      margin: 24px 0;
+      font-style: italic;
+    }
+
+    .quote .author {
+      margin-top: 14px;
+      font-style: normal;
+      font-weight: 700;
+      color: var(--primary-dark);
+    }
+
+    /* Helpers */
+    .center {
+      text-align: center;
+    }
+
+    .highlight {
+      color: var(--primary);
+      font-weight: 700;
+    }
+
+    .big-emoji {
+      font-size: 64px;
+      margin-bottom: 16px;
+    }
+
+    .footer {
+      margin-top: auto;
+      padding-top: 40px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    /* Floating PDF button */
+    .pdf-controls {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      display: flex;
+      gap: 12px;
+      z-index: 1000;
+    }
+
+    .pdf-controls button {
+      padding: 14px 24px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 999px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 6px 20px rgba(79, 70, 229, 0.35);
+      font-size: 14px;
+    }
+
+    .pdf-controls button.secondary {
+      background: white;
+      color: var(--primary);
+      border: 2px solid var(--primary);
+    }
+
+    /* Print optimization */
+    @media print {
+      body {
+        background: white;
+      }
+
+      .page {
+        width: 100%;
+        min-height: 100vh;
+        margin: 0;
+        padding: 18mm;
+        box-shadow: none;
+        page-break-after: always;
+      }
+
+      .pdf-controls {
+        display: none !important;
+      }
+
+      .btn {
+        border: 2px solid currentColor;
+      }
+
+      .cover {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .card, .feature-item, .step, .quote, .stat-card {
+        break-inside: avoid;
+      }
+
+      .two-col, .three-col, .steps {
+        break-inside: avoid;
+      }
+
+      h2, h3 {
+        break-after: avoid;
+      }
+
+      p, li {
+        orphans: 3;
+        widows: 3;
+      }
+    }
+
+    @page {
+      size: A4;
+      margin: 0;
+    }
+
+    /* Mobile preview */
+    @media (max-width: 900px) {
+      .page {
+        width: auto;
+        min-height: auto;
+        padding: 24px;
+      }
+
+      .two-col, .three-col, .steps, .feature-list {
+        grid-template-columns: 1fr;
+      }
+
+      .cover h1 {
+        font-size: 42px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Floating controls -->
+  <div class="pdf-controls">
+    <button class="secondary" onclick="window.print()">🖨️ Salvar PDF / Imprimir</button>
+  </div>
+
+  <!-- Page 1: Cover -->
+  <section class="page cover">
+    <div class="badge">Plataforma de Preparação Universitária</div>
+    <h1>Simula<span>Pass</span></h1>
+    <p>Exames reais de universidades moçambicanas, corrigidos em tempo real, no seu telemóvel.</p>
+    <div class="cta-row">
+      <a href="#" class="btn btn-primary">📲 Descarregar app</a>
+      <a href="#" class="btn btn-outline">🌐 Visitar website</a>
+    </div>
+    <div class="cover-footer">
+      EduPrep SaaS © 2026 • Moçambique
+    </div>
+  </section>
+
+  <!-- Page 2: The Challenge -->
+  <section class="page">
+    <h2>O Desafio</h2>
+    <p class="subtitle">Milhares de estudantes moçambicanos preparam-se para exames de admissão sem acesso fácil a provas anteriores, correção automática ou feedback imediato.</p>
+
+    <div class="two-col">
+      <div>
+        <h3>❌ O que falta hoje</h3>
+        <ul style="margin-left: 20px; color: var(--muted);">
+          <li style="margin-bottom: 10px;">Provas antigas espalhadas em PDFs e papel</li>
+          <li style="margin-bottom: 10px;">Correção manual demorada</li>
+          <li style="margin-bottom: 10px;">Falta de estatísticas de desempenho</li>
+          <li style="margin-bottom: 10px;">Dificuldade em encontrar explicações acessíveis</li>
+          <li style="margin-bottom: 10px;">Sem acompanhamento de progresso</li>
+        </ul>
+      </div>
+      <div class="card" style="background: linear-gradient(135deg, #fef3c7, #fffbeb); border: none;">
+        <div class="big-emoji">🎓</div>
+        <h3> A oportunidade</h3>
+        <p>Um simulador digital com <span class="highlight">14 exames reais</span> das principais universidades de Moçambique, acessível 24/7 e com correção instantânea.</p>
+      </div>
+    </div>
+
+    <div class="three-col" style="margin-top: 40px;">
+      <div class="stat-card card">
+        <div class="number">50k+</div>
+        <div class="label">Candidatos/ano</div>
+      </div>
+      <div class="stat-card card">
+        <div class="number">14</div>
+        <div class="label">Exames disponíveis</div>
+      </div>
+      <div class="stat-card card">
+        <div class="number">90%</div>
+        <div class="label">Estudantes com telemóvel</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Page 3: Solution -->
+  <section class="page">
+    <h2>A Solução</h2>
+    <p class="subtitle">SimulaPass é uma plataforma mobile-first que junta simulados, explicações por tutores e comunidade num só lugar.</p>
+
+    <div class="feature-list">
+      <div class="feature-item">
+        <div class="bullet">1</div>
+        <div>
+          <strong>Simulador de Exames</strong>
+          <span>Provas reais da UEM, UP, UCM, Unilúrio, ISRI e ISCTEM com correção automática e explicações.</span>
+        </div>
+      </div>
+      <div class="feature-item">
+        <div class="bullet">2</div>
+        <div>
+          <strong>Upload Inteligente</strong>
+          <span>PDFs de exames são processados por IA (Google Gemini) e convertidos em questões interativas.</span>
+        </div>
+      </div>
+      <div class="feature-item">
+        <div class="bullet">3</div>
+        <div>
+          <strong>Tutores e Aulas</strong>
+          <span>Agende aulas com tutores especializados por disciplina e veja disponibilidade em tempo real.</span>
+        </div>
+      </div>
+      <div class="feature-item">
+        <div class="bullet">4</div>
+        <div>
+          <strong>Comunidade e Feed</strong>
+          <span>Partilhe conquistas, dúvidas e mantenha-se atualizado sobre novos exames e dicas.</span>
+        </div>
+      </div>
+      <div class="feature-item">
+        <div class="bullet">5</div>
+        <div>
+          <strong>Modo Offline</strong>
+          <span>Cache local com AsyncStorage permite estudar mesmo sem internet.</span>
+        </div>
+      </div>
+      <div class="feature-item">
+        <div class="bullet">6</div>
+        <div>
+          <strong>Pagamentos Integrados</strong>
+          <span>Planos premium acessíveis via M-Pesa, E-Mola e cartão (PayGate).</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="quote" style="margin-top: 40px;">
+      “Finalmente consigo treinar com exames reais e saber logo onde errei. O SimulaPass mudou a minha preparação.”
+      <div class="author">— Estudante de Medicina, Maputo</div>
+    </div>
+  </section>
+
+  <!-- Page 4: How it works -->
+  <section class="page">
+    <h2>Como Funciona</h2>
+    <p class="subtitle">Três passos simples para começar a preparação.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="num">1</div>
+        <h4>Criar conta</h4>
+        <p>Registo rápido com e-mail. Escolha o curso e as disciplinas de interesse.</p>
+      </div>
+      <div class="step">
+        <div class="num">2</div>
+        <h4>Escolher exame</h4>
+        <p>Filtre por instituição, disciplina e ano. Comece o simulado.</p>
+      </div>
+      <div class="step">
+        <div class="num">3</div>
+        <h4>Treinar e melhorar</h4>
+        <p>Veja resultados, estatísticas e explicações. Suba de nível com cada sessão.</p>
+      </div>
+    </div>
+
+    <div class="two-col" style="margin-top: 46px;">
+      <div class="card">
+        <div class="icon">📊</div>
+        <h3>Dashboard Inteligente</h3>
+        <p>O estudante acompanha simulados feitos, média geral, progresso por disciplina e histórico de acertos. O administrador vê estatísticas globais da plataforma.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🤖</div>
+        <h3>Recomendações com IA</h3>
+        <p>Após cada simulado, a IA sugere tópicos a rever e próximos exames ideais com base no desempenho.</p>
+      </div>
+    </div>
+
+    <div class="two-col" style="margin-top: 22px;">
+      <div class="card">
+        <div class="icon">💬</div>
+        <h3>Tutores em tempo real</h3>
+        <p>Sistema de chat entre estudantes, tutores e administradores. Agendamento de aulas com pagamento integrado.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🏆</div>
+        <h3>Feed Social</h3>
+        <p>Partilhe conquistas, comente publicações e crie uma comunidade de estudo motivada.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Page 5: Target Audience -->
+  <section class="page">
+    <h2>Para Quem é</h2>
+    <p class="subtitle">SimulaPass foi desenhado para todos os intervenientes no ecossistema educativo moçambicano.</p>
+
+    <div class="three-col">
+      <div class="card center" style="border-top: 6px solid var(--primary);">
+        <div class="big-emoji">🧑‍🎓</div>
+        <h3>Estudantes</h3>
+        <p>Candidatos a universidades que precisam de treinar com provas reais e medir progresso.</p>
+      </div>
+      <div class="card center" style="border-top: 6px solid #10b981;">
+        <div class="big-emoji">👨‍🏫</div>
+        <h3>Tutores</h3>
+        <p>Professores e explicadores que querem monetizar o conhecimento através de aulas agendadas.</p>
+      </div>
+      <div class="card center" style="border-top: 6px solid var(--accent);">
+        <div class="big-emoji">🏫</div>
+        <h3>Instituições</h3>
+        <p>Escolas e academias que pretendem oferecer preparação digital aos seus alunos.</p>
+      </div>
+    </div>
+
+    <div class="quote" style="margin-top: 50px;">
+      “Como tutor, consigo definir o meu horário, preço e receber pagamentos diretamente pela app.”
+      <div class="author">— Tutor de Matemática, Beira</div>
+    </div>
+  </section>
+
+  <!-- Page 6: Pricing -->
+  <section class="page">
+    <h2>Planos e Preços</h2>
+    <p class="subtitle">Modelo freemium: comece grátis e desbloqueie todo o potencial quando estiver pronto.</p>
+
+    <table class="pricing-table">
+      <thead>
+        <tr>
+          <th>Plano</th>
+          <th>Preço</th>
+          <th>Duração</th>
+          <th>Inclui</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Gratuito</strong></td>
+          <td class="price">0 MZN</td>
+          <td>Para sempre</td>
+          <td>5 questões gratuitas por exame + demo</td>
+        </tr>
+        <tr>
+          <td><strong>Mensal</strong></td>
+          <td class="price">500 MZN</td>
+          <td>1 mês</td>
+          <td>Acesso completo a todos os exames</td>
+        </tr>
+        <tr>
+          <td><strong>Anual</strong></td>
+          <td class="price">4.800 MZN</td>
+          <td>12 meses</td>
+          <td>Poupança de 1.200 MZN</td>
+        </tr>
+        <tr>
+          <td><strong>Vitalício</strong></td>
+          <td class="price">15.000 MZN</td>
+          <td>Para sempre</td>
+          <td>Acesso ilimitado sem renovação</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="two-col" style="margin-top: 46px;">
+      <div class="card">
+        <h3>💳 Métodos de pagamento</h3>
+        <p>M-Pesa, E-Mola, cartão (PayGate/DPO) e transferência bancária. Integração segura com confirmação automática.</p>
+      </div>
+      <div class="card">
+        <h3>🎁 Porque premium?</h3>
+        <p>Desbloqueie exames completos, aulas com tutores, estatísticas avançadas e upload de novas provas.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Page 7: Why SimulaPass -->
+  <section class="page">
+    <h2>Porque Escolher o SimulaPass</h2>
+    <p class="subtitle">Tecnologia moderna, conteúdo real e foco no estudante moçambicano.</p>
+
+    <div class="feature-list">
+      <div class="feature-item">
+        <div class="bullet" style="background: #10b981;">✓</div>
+        <div>
+          <strong>Conteúdo autêntico</strong>
+          <span>14 exames reais de universidades moçambicanas, com direito a atualização contínua.</span>
+        </div>
+      </div>
+      <div class="feature-item">
+        <div class="bullet" style="background: #10b981;">✓</div>
+        <div>
+          <strong>Correção imediata</strong>
+          <span>Respostas validadas em tempo real com feedback explicativo para cada questão.</span>
+        </div>
+      </div>
+      <div class="feature-item">
+        <div class="bullet" style="background: #10b981;">✓</div>
+        <div>
+          <strong>Disponibilidade offline</strong>
+          <span>Estude sem internet. Sincronização automática quando voltar a estar online.</span>
+        </div>
+      </div>
+      <div class="feature-item">
+        <div class="bullet" style="background: #10b981;">✓</div>
+        <div>
+          <strong>Economia</strong>
+          <span>Preços acessíveis comparados com explicações presenciais.</span>
+        </div>
+      </div>
+      <div class="feature-item">
+        <div class="bullet" style="background: #10b981;">✓</div>
+        <div>
+          <strong>Escalável</strong>
+          <span>Arquitetura Firebase permite suportar milhares de estudantes em simultâneo.</span>
+        </div>
+      </div>
+      <div class="feature-item">
+        <div class="bullet" style="background: #10b981;">✓</div>
+        <div>
+          <strong>Suporte local</strong>
+          <span>Equipa e pagamento adaptados ao contexto moçambicano.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="three-col" style="margin-top: 40px;">
+      <div class="stat-card card">
+        <div class="number">14</div>
+        <div class="label">Exames reais</div>
+      </div>
+      <div class="stat-card card">
+        <div class="number">3</div>
+        <div class="label">Perfis (estudante, tutor, admin)</div>
+      </div>
+      <div class="stat-card card">
+        <div class="number">24/7</div>
+        <div class="label">Disponibilidade</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Page 8: Call to action -->
+  <section class="page" style="display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; background: linear-gradient(135deg, #1e1b4b 0%, #4f46e5 100%); color: white;">
+    <div class="big-emoji" style="font-size: 80px; margin-bottom: 24px;">🚀</div>
+    <h2 style="color: white; font-size: 46px; margin-bottom: 18px;">Pronto para começar?</h2>
+    <p style="font-size: 20px; opacity: 0.9; max-width: 540px; margin-bottom: 36px;">Transforme a preparação universitária em Moçambique. Disponível em breve na Play Store.</p>
+
+    <div style="margin-bottom: 48px;">
+      <a href="#" class="btn btn-primary" style="font-size: 18px; padding: 18px 40px;">📲 Reservar lugar na Play Store</a>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; text-align: left; max-width: 560px; opacity: 0.92;">
+      <div>
+        <strong>Website</strong><br />
+        www.simulapass.co.mz
+      </div>
+      <div>
+        <strong>E-mail</strong><br />
+        suporte@simulapass.co.mz
+      </div>
+      <div>
+        <strong>Telefone</strong><br />
+        +258 84 000 0000
+      </div>
+      <div>
+        <strong>Sede</strong><br />
+        Maputo, Moçambique
+      </div>
+    </div>
+
+    <div class="footer" style="color: rgba(255,255,255,0.6); margin-top: 60px;">
+      EduPrep SaaS © 2026 • SimulaPass • Todos os direitos reservados
+    </div>
+  </section>
+
+  <script>
+    // Abre a janela de impressão ao carregar com ?print=1
+    if (window.location.search.includes('print=1')) {
+      setTimeout(() => window.print(), 800);
+    }
+  </script>
+</body>
+</html>

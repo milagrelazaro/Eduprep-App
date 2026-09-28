@@ -29,6 +29,7 @@ export interface User {
   firebaseUid?: string;
   // Profile data
   intendedCourse?: string;
+  intendedInstitution?: string;
   competingDisciplines?: string[];
   focus?: 'exams' | 'tutoring' | 'both';
 

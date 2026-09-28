@@ -3,8 +3,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useAuthStore } from '../store/authStore';
 import { UserRole } from '../types';
-import { Text, View } from 'react-native';
-import { colors } from '../theme/colors';
+import { Text, View, StyleSheet, TouchableOpacity } from 'react-native';
+import { colors, shadows, borderRadius } from '../theme/colors';
 
 import OnboardingScreen from '../screens/OnboardingScreen';
 import LoginScreen from '../screens/LoginScreen';
@@ -61,29 +61,56 @@ export type MainTabParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
+function FloatingTabBar({ state, descriptors, navigation }: any) {
+  return (
+    <View style={styles.tabBarContainer} pointerEvents="box-none">
+      <View style={styles.floatingBar}>
+        {state.routes.map((route: any, index: number) => {
+          const { options } = descriptors[route.key];
+          const label = options.tabBarLabel ?? route.name;
+          const isFocused = state.index === index;
+          const icon = options.tabBarIcon?.({ color: isFocused ? colors.black : colors.grayMedium, focused: isFocused }) ?? null;
+          const onPress = () => {
+            const event = navigation.emit({
+              type: 'tabPress',
+              target: route.key,
+              canPreventDefault: true,
+            });
+            if (!isFocused && !event.defaultPrevented) {
+              navigation.navigate(route.name, route.params);
+            }
+          };
+          return (
+            <TouchableOpacity
+              key={route.key}
+              onPress={onPress}
+              style={styles.tabItem}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.tabIconWrap, isFocused && styles.tabIconActive]}>
+                {icon}
+              </View>
+              <Text style={[styles.tabLabel, { color: isFocused ? colors.black : colors.grayMedium }]}>
+                {label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 function MainTabs() {
   const { user } = useAuthStore();
 
   return (
     <Tab.Navigator
+      tabBar={(props) => <FloatingTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.primary,
+        tabBarActiveTintColor: colors.black,
         tabBarInactiveTintColor: colors.grayMedium,
-        tabBarStyle: {
-          borderTopWidth: 1,
-          borderTopColor: colors.borderLight,
-          backgroundColor: colors.white,
-          paddingBottom: 8,
-          paddingTop: 8,
-          height: 65,
-          elevation: 0,
-          shadowOpacity: 0,
-        },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
-        },
       }}
     >
       <Tab.Screen
@@ -185,3 +212,47 @@ export default function AppNavigator() {
     </Stack.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBarContainer: {
+    position: 'absolute',
+    bottom: 20,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  floatingBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    width: '88%',
+    maxWidth: 440,
+    height: 68,
+    backgroundColor: colors.white,
+    borderRadius: 34,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    paddingHorizontal: 6,
+    ...shadows.large,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  tabIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.round,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabIconActive: {
+    backgroundColor: colors.primaryLight,
+  },
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+});

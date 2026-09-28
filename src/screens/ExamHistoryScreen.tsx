@@ -64,7 +64,7 @@ export default function ExamHistoryScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={{ fontSize: 24, color: '#4f46e5' }}>←</Text>
+          <Text style={{ fontSize: 24, color: '#E6B21F' }}>←</Text>
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text variant="headlineSmall" style={styles.title}>Histórico de Simulados</Text>
@@ -85,7 +85,7 @@ export default function ExamHistoryScreen() {
                 <Text style={styles.statLabel}>Total</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: '#4f46e5' }]}>{averageScore}%</Text>
+                <Text style={[styles.statValue, { color: '#E6B21F' }]}>{averageScore}%</Text>
                 <Text style={styles.statLabel}>Média</Text>
               </View>
               <View style={styles.statItem}>

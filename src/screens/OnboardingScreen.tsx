@@ -45,6 +45,7 @@ export default function OnboardingScreen() {
       try {
         await updateUser({
           intendedCourse: selectedCourse,
+          intendedInstitution: selectedInstitution,
           competingDisciplines: selectedSubjects,
         });
 
@@ -207,8 +208,8 @@ const styles = StyleSheet.create({
   logoBox: {
     width: 64,
     height: 64,
-    backgroundColor: '#4f46e5',
-    borderRadius: 16,
+    backgroundColor: '#FFC629',
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -236,7 +237,7 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#4f46e5',
+    backgroundColor: '#FFC629',
   },
   progressText: {
     fontSize: 12,
@@ -286,7 +287,7 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   chipTextSelected: {
-    color: '#4f46e5',
+    color: '#E6B21F',
   },
   dateOptions: {
     flexDirection: 'column',
@@ -300,15 +301,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   dateOptionSelected: {
-    borderColor: '#4f46e5',
-    backgroundColor: '#eef2ff',
+    borderColor: '#FFC629',
+    backgroundColor: '#FFF8E1',
   },
   dateText: {
     fontSize: 16,
     color: '#374151',
   },
   dateTextSelected: {
-    color: '#4f46e5',
+    color: '#E6B21F',
     fontWeight: '600',
   },
   buttonContainer: {

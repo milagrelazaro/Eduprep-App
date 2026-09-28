@@ -29,7 +29,7 @@ export default function ExamReviewScreen() {
       const resultSnapshot = await getDocs(resultQuery);
       
       if (!resultSnapshot.empty) {
-        const resultData = { id: resultSnapshot.docs[0].id, ...resultSnapshot.docs[0].data() };
+        const resultData: any = { id: resultSnapshot.docs[0].id, ...resultSnapshot.docs[0].data() };
         setResult(resultData);
         
         // Buscar questões do exame
@@ -79,7 +79,7 @@ export default function ExamReviewScreen() {
       <View style={styles.screen}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Text style={{ fontSize: 24, color: '#4f46e5' }}>←</Text>
+            <Text style={{ fontSize: 24, color: '#E6B21F' }}>←</Text>
           </TouchableOpacity>
           <Text variant="headlineSmall" style={styles.title}>Carregando...</Text>
         </View>
@@ -92,7 +92,7 @@ export default function ExamReviewScreen() {
       <View style={styles.screen}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Text style={{ fontSize: 24, color: '#4f46e5' }}>←</Text>
+            <Text style={{ fontSize: 24, color: '#E6B21F' }}>←</Text>
           </TouchableOpacity>
           <Text variant="headlineSmall" style={styles.title}>Resultado não encontrado</Text>
         </View>
@@ -104,7 +104,7 @@ export default function ExamReviewScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <View style={styles.header}><TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}><Text style={{ fontSize: 24, color: '#4f46e5' }}>←</Text></TouchableOpacity><View style={{ flex: 1 }}><Text variant="headlineSmall" style={styles.title}>Revisão do Simulado</Text><Text variant="bodyMedium" style={{ color: '#6b7280' }}>{result.examName || result.subject || 'Simulado'}</Text></View></View>
+      <View style={styles.header}><TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}><Text style={{ fontSize: 24, color: '#E6B21F' }}>←</Text></TouchableOpacity><View style={{ flex: 1 }}><Text variant="headlineSmall" style={styles.title}>Revisão do Simulado</Text><Text variant="bodyMedium" style={{ color: '#6b7280' }}>{result.examName || result.subject || 'Simulado'}</Text></View></View>
 
       {/* Score Card */}
       <Card style={[styles.scoreCard, { backgroundColor: getScoreBg(result.score) }]}>
@@ -356,6 +356,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9fafb',
     borderRadius: 8,
     borderLeftWidth: 3,
-    borderLeftColor: '#4f46e5',
+    borderLeftColor: '#E6B21F',
   },
 });

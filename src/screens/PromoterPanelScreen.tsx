@@ -202,7 +202,7 @@ export default function PromoterPanelScreen() {
               💳 Dados de Pagamento
             </Text>
             <TouchableOpacity onPress={() => setShowPaymentModal(true)}>
-              <Text style={{ color: '#4f46e5', fontWeight: '600' }}>Editar</Text>
+              <Text style={{ color: '#E6B21F', fontWeight: '600' }}>Editar</Text>
             </TouchableOpacity>
           </View>
           {promoter.paymentData?.mpesaNumber ? (

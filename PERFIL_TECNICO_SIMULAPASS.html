@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="pt-MZ">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Técnico de Utilização e Testes — SimulaPass</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --text: #111827;
+      --muted: #4b5563;
+      --light: #f3f4f6;
+      --border: #d1d5db;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --white: #fff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      background: #f9fafb;
+      color: var(--text);
+      line-height: 1.6;
+      padding: 32px 20px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: var(--white);
+      padding: 48px;
+      border-radius: 16px;
+      box-shadow: 0 4px 32px rgba(0,0,0,0.06);
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding-bottom: 24px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .header h1 {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--primary-dark);
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    h2 {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--primary-dark);
+      margin: 32px 0 16px;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 8px;
+    }
+
+    h3 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      margin: 24px 0 10px;
+    }
+
+    p, ul, ol { margin-bottom: 14px; }
+
+    ul, ol { margin-left: 22px; }
+
+    li { margin-bottom: 8px; }
+
+    .tag {
+      display: inline-block;
+      background: var(--light);
+      color: var(--muted);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-right: 6px;
+      margin-bottom: 6px;
+    }
+
+    .box {
+      background: #eff6ff;
+      border-left: 4px solid var(--primary);
+      padding: 16px 20px;
+      border-radius: 0 10px 10px 0;
+      margin-bottom: 24px;
+      font-size: 15px;
+    }
+
+    .box strong { color: var(--primary-dark); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 14px;
+    }
+
+    th, td {
+      border: 1px solid var(--border);
+      padding: 12px 14px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #1f2937;
+      color: white;
+      font-weight: 700;
+    }
+
+    tr:nth-child(even) { background: #f9fafb; }
+
+    .req-must { color: var(--danger); font-weight: 700; }
+    .req-should { color: var(--warning); font-weight: 700; }
+    .req-nice { color: var(--success); font-weight: 700; }
+
+    .interview {
+      background: #f3f4f6;
+      border-radius: 10px;
+      padding: 20px;
+      margin-top: 16px;
+    }
+
+    .interview h3 { margin-top: 0; }
+
+    .interview li {
+      margin-bottom: 10px;
+      padding-left: 8px;
+    }
+
+    .footer {
+      margin-top: 40px;
+      padding-top: 24px;
+      border-top: 2px solid var(--border);
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .print-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+    }
+
+    @media print {
+      body { background: white; padding: 0; }
+      .container { box-shadow: none; max-width: 100%; padding: 24px; }
+      .print-btn { display: none; }
+      h2, h3 { page-break-after: avoid; }
+      table, .interview, .box { break-inside: avoid; }
+      th { background: #374151 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+
+    @page { size: A4; margin: 15mm; }
+  </style>
+</head>
+<body>
+  <button class="print-btn" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button>
+
+  <div class="container">
+    <div class="header">
+      <h1>Técnico de Utilização e Testes — SimulaPass</h1>
+      <p>Documento de requisitos para contratação de técnico de utilização e testes (cadastro de exames, validação de conteúdo e reporte de erros)</p>
+    </div>
+
+    <div class="box">
+      <strong>Objetivo deste documento:</strong><br />
+      Definir o perfil ideal de candidatos que vão operar o sistema SimulaPass/EduPrep no dia a dia como <strong>técnicos de utilização e testes</strong>: testar novas funcionalidades, cadastrar exames e questões, validar conteúdo, reportar bugs e acompanhar a publicação na Play Store. <strong>Não é uma função de desenvolvimento/programação</strong> — essa parte é da equipa de desenvolvimento. Este documento pode ser anexado ao anúncio da vaga e usado como base para entrevistas.
+    </div>
+
+    <h2>1. Sobre o Sistema</h2>
+    <p>SimulaPass é uma plataforma mobile-first de preparação para exames de admissão a universidades moçambicanas. O sistema inclui:</p>
+    <ul>
+      <li>Simulador de exames com provas reais (UEM, UP, UCM, Unilúrio, ISRI, ISCTEM).</li>
+      <li>Upload de exames em PDF com processamento por IA (Google Gemini).</li>
+      <li>Gestão de usuários (estudantes, tutores, administradores).</li>
+      <li>Feed social, chat, agendamento de aulas e sistema de pagamentos (M-Pesa, E-Mola, cartão).</li>
+      <li>Base de dados, autenticação e armazenamento no Firebase (Firestore, Auth, Storage).</li>
+    </ul>
+
+    <p><strong>Importante:</strong> o técnico <strong>não precisa programar</strong>. Vai usar o app e as ferramentas de gestão já configuradas pela equipa de desenvolvimento. Conhecimentos técnicos de programação são uma vantagem, mas não são exigidos.</p>
+
+    <h2>2. Título da Vaga</h2>
+    <p><strong>Técnico de Utilização e Testes — SimulaPass</strong> (pode também ser: Assistente de Conteúdo e Testes / Operador de Plataforma Digital)</p>
+
+    <h2>3. Requisitos Obrigatórios</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Competência</th>
+          <th>Porquê é necessário</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="req-must">Conhecimentos básicos de informática</td>
+          <td>Usar computador com autonomia: navegação, e-mail, ficheiros, planilhas e instalação de apps no telemóvel.</td>
+        </tr>
+        <tr>
+          <td class="req-must">Leitura e escrita em português claro</td>
+          <td>Vai inserir enunciados, explicações e feedback de questões; erros de português prejudicam a credibilidade.</td>
+        </tr>
+        <tr>
+          <td class="req-must">Lógica e atenção ao detalhe</td>
+          <td>Testar exames exige verificar alternativas corretas, explicações e cálculos sem erros.</td>
+        </tr>
+        <tr>
+          <td class="req-must">Disponibilidade para aprender</td>
+          <td>O app e as ferramentas de gestão evoluem com frequência; precisa aprender rápido.</td>
+        </tr>
+        <tr>
+          <td class="req-must">Residência em Moçambique</td>
+          <td>Necessário conhecer o contexto educativo moçambicano, instituições e exames nacionais.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>4. Requisitos Técnicos Desejáveis</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Competência</th>
+          <th>Porquê é útil</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="req-should">Experiência com apps móveis</td>
+          <td>Para testar o app em Android/iOS e identificar comportamentos estranhos.</td>
+        </tr>
+        <tr>
+          <td class="req-should">Edição de documentos e planilhas</td>
+          <td>Para preparar listas de questões, conferir dados e organizar relatórios de testes.</td>
+        </tr>
+        <tr>
+          <td class="req-should">Noções de Firebase Console (leitura)</td>
+          <td>Para consultar exames, usuários e conteúdo com orientação da equipa de desenvolvimento.</td>
+        </tr>
+        <tr>
+          <td class="req-should">Inglês básico técnico</td>
+          <td>Para ler documentação e mensagens de erro das ferramentas.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>5. Diferenciais (Nice to Have)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Competência</th>
+          <th>Vantagem</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="req-nice">Noções de Play Console / publicação de apps</td>
+          <td>Ajuda a acompanhar versões publicadas e reportar problemas de atualização.</td>
+        </tr>
+        <tr>
+          <td class="req-nice">Familiaridade com M-Pesa / pagamentos digitais</td>
+          <td>Facilita testes e verificação de transações simuladas.</td>
+        </tr>
+        <tr>
+          <td class="req-nice">Conhecimento em matemática/ciências</td>
+          <td>Ajuda a validar questões de exames de admissão técnicos.</td>
+        </tr>
+        <tr>
+          <td class="req-nice">Experiência como monitor/tutor</td>
+          <td>Melhor entendimento do utilizador final e do conteúdo pedagógico.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>6. Principais Responsabilidades</h2>
+    <ul>
+      <li><strong>Cadastrar exames e questões:</strong> Receber PDFs, validar o resultado da extração, corrigir erros de conteúdo e publicar no catálogo.</li>
+      <li><strong>Testar novas funcionalidades:</strong> Instalar versões de teste, simular fluxos de utilizador (estudante, tutor, admin) e reportar bugs.</li>
+      <li><strong>Validar conteúdo:</strong> Verificar alternativas corretas, explicações, disciplinas, instituições e anos.</li>
+      <li><strong>Gerir conteúdo com orientação:</strong> Criar contas de teste, aprovar exames e moderar posts usando as ferramentas indicadas pela equipa de desenvolvimento.</li>
+      <li><strong>Acompanhar versões publicadas:</strong> Verificar se a versão mais recente está disponível na Play Store e reportar problemas.</li>
+      <li><strong>Documentar bugs:</strong> Criar relatórios claros com passos para reproduzir, capturas de ecrã e descrição do erro.</li>
+      <li><strong>Comunicar com a equipa de desenvolvimento:</strong> Passar feedback estruturado para quem vai corrigir e melhorar o sistema.</li>
+    </ul>
+
+    <h2>7. Atitudes Esperadas</h2>
+    <ul>
+      <li>Proatividade na resolução de problemas.</li>
+      <li>Organização e registo de tarefas concluídas.</li>
+      <li>Honestidade ao comunicar erros e atrasos.</li>
+      <li>Respeito por dados pessoais e credenciais de acesso.</li>
+      <li>Capacidade de trabalhar em equipa e seguir processos definidos.</li>
+    </ul>
+
+    <h2>8. Perfil Não Adequado</h2>
+    <p>Não é adequado candidato que:</p>
+    <ul>
+      <li>Não consegue usar um computador com autonomia (navegação, ficheiros, email).</li>
+      <li>Não tem paciência para tarefas repetitivas de verificação.</li>
+      <li>Não se sente confortável a aprender ferramentas novas.</li>
+      <li>Tem dificuldade séria de leitura/escrita em português.</li>
+      <li>Desconhece o sistema educativo moçambicano e não tem interesse em conhecê-lo.</li>
+    </ul>
+
+    <h2>9. Perguntas Sugeridas para Entrevista</h2>
+
+    <div class="interview">
+      <h3>Utilização e Testes</h3>
+      <ol>
+        <li>Como testaria se um simulado com 20 questões está a calcular corretamente a nota final?</li>
+        <li>O que faria se uma questão tiver a alternativa correta errada no app?</li>
+        <li>Como verificaria que um exame novo foi cadastrado corretamente no catálogo?</li>
+        <li>Como organizaria o seu trabalho semanal de testes e cadastro de exames?</li>
+        <li>Como descreveria um erro de forma que a equipa de desenvolvimento o entenda?</li>
+      </ol>
+    </div>
+
+    <div class="interview">
+      <h3>Práticas / Operacionais</h3>
+      <ol>
+        <li>Recebe um PDF de um exame de Matemática. Quais passos seguiria para o colocar no app?</li>
+        <li>Um utilizador diz que o pagamento foi descontado mas o premium não ativou. O que faz?</li>
+        <li>Encontra uma questão com a resposta errada no simulador. Como reporta e corrige?</li>
+        <li>Como mediria a qualidade do trabalho semanal de testes?</li>
+        <li>Quais cuidados deve ter ao criar uma conta de admin para testes?</li>
+      </ol>
+    </div>
+
+    <div class="interview">
+      <h3>Comportamentais</h3>
+      <ol>
+        <li>Descreva uma vez em que encontrou um erro crítico e como lidou com isso.</li>
+        <li>Como lida com tarefas que considera repetitivas?</li>
+        <li>Como prefere receber feedback sobre o seu trabalho?</li>
+      </ol>
+    </div>
+
+    <h2>10. Proposta de Teste Prático</h2>
+    <p>Para avaliar candidatos, pode ser pedido:</p>
+    <ol>
+      <li><strong>Teste de atenção:</strong> Identificar 5 erros num conjunto de 10 questões de exame.</li>
+      <li><strong>Teste de utilização:</strong> Testar um fluxo completo no app (login → simulado → resultado) e descrever o que observou.</li>
+      <li><strong>Teste de comunicação:</strong> Escrever um relatório simples de bug com capturas de ecrã.</li>
+      <li><strong>Teste de conteúdo:</strong> Adicionar uma questão ao catálogo com alternativa correta e explicação.</li>
+    </ol>
+
+    <h2>11. Contratação e Integração</h2>
+    <ul>
+      <li><strong>Período experimental:</strong> 1 a 3 meses para validar domínio das ferramentas e compromisso.</li>
+      <li><strong>Formação inicial:</strong> Sessões sobre o app, cadastro de exames, ferramentas de gestão de conteúdo e workflow de testes.</li>
+      <li><strong>Acompanhamento:</strong> Reuniões semanais de alinhamento e revisão de tarefas concluídas.</li>
+      <li><strong>Crescimento:</strong> Possibilidade de evoluir para coordenador de conteúdo ou testes.</li>
+    </ul>
+
+    <div class="box" style="background: #fffbeb; border-left-color: var(--warning);">
+      <strong>Nota para o gestor:</strong> Esta vaga é de <strong>utilização e testes</strong>, não de desenvolvimento. O candidato ideal deve ser autónomo, organizado, com atenção ao detalhe e vontade de aprender. A formação específica do SimulaPass pode ser dada na integração.
+    </div>
+
+    <div class="footer">
+      EduPrep SaaS © 2026 — SimulaPass<br />
+      Documento para apoio à contratação e entrevista
+    </div>
+  </div>
+</body>
+</html>

@@ -115,7 +115,7 @@ export default function LoginScreen() {
             <Text style={{ fontSize: 32 }}>�</Text>
           </View>
           <Text variant="headlineMedium" style={styles.title}>
-            Simula<Text style={{ color: '#FF4D3A' }}>Pass</Text>
+            Simula<Text style={{ color: '#E6B21F' }}>Pass</Text>
           </Text>
           <Text variant="labelMedium" style={styles.subtitle}>
             {isLogin ? 'Bem-vindo de volta! Faça login para continuar' : 'Crie sua conta de estudante'}
@@ -220,7 +220,7 @@ export default function LoginScreen() {
               mode="text"
               compact
               onPress={() => setIsLogin(!isLogin)}
-              labelStyle={{ color: '#4f46e5', fontWeight: '700', fontSize: 12 }}
+              labelStyle={{ color: '#E6B21F', fontWeight: '700', fontSize: 12 }}
             >
               {isLogin ? 'Criar nova conta' : 'Já tenho conta'}
             </Button>
@@ -253,21 +253,21 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   iconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: 56,
+    height: 56,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
-    backgroundColor: '#4f46e5',
+    backgroundColor: '#FFC629',
   },
   helpCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     backgroundColor: '#EAF3FF',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 16,
     gap: 10,
   },
   helpEmoji: {
@@ -296,28 +296,34 @@ const styles = StyleSheet.create({
   },
   formCard: {
     backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 16,
+    borderRadius: 24,
+    padding: 20,
     borderWidth: 1,
-    borderColor: '#f0f0f0',
+    borderColor: '#F0F0F0',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
   },
   input: {
-    marginBottom: 12,
-    backgroundColor: '#f9fafb',
+    marginBottom: 14,
+    backgroundColor: '#FAFAFA',
   },
   inputOutline: {
-    borderRadius: 8,
-    borderColor: '#f3f4f6',
+    borderRadius: 16,
+    borderColor: '#E8E8E8',
   },
   submitBtn: {
-    borderRadius: 8,
-    marginTop: 6,
-    backgroundColor: '#4f46e5',
+    borderRadius: 30,
+    marginTop: 8,
+    minHeight: 54,
+    backgroundColor: '#FFC629',
   },
   submitLabel: {
-    color: '#fff',
+    color: '#3F3F3F',
     fontWeight: '800',
-    fontSize: 14,
+    fontSize: 15,
   },
   footerRow: {
     flexDirection: 'row',
@@ -332,10 +338,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   chip: {
-    backgroundColor: '#f3f4f6',
-    borderRadius: 12,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 16,
   },
   chipSelected: {
-    backgroundColor: '#4f46e5',
+    backgroundColor: '#FFC629',
   },
 });

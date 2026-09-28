@@ -33,6 +33,8 @@ export default function EnhancedSimulatorScreen() {
   const [availableSubjects, setAvailableSubjects] = useState<string[]>(FALLBACK_SUBJECTS);
   const [availableTopics, setAvailableTopics] = useState<string[]>([]);
   const [filterSubject, setFilterSubject] = useState('');
+  const [filterInstitution, setFilterInstitution] = useState('');
+  const [filterYear, setFilterYear] = useState('');
 
   useEffect(() => {
     loadExams();
@@ -41,9 +43,6 @@ export default function EnhancedSimulatorScreen() {
   const loadExams = async () => {
     try {
       setLoading(true);
-      
-      // Filtrar disciplinas baseado na configuração acadêmica do usuário
-      const userSubjects = user?.competingDisciplines || [];
       
       // Buscar TODOS os exames do Firestore (inclui pending e approved)
       const examsQuery = query(
@@ -108,13 +107,7 @@ export default function EnhancedSimulatorScreen() {
       if (dynamicSubjects.length > 0) setAvailableSubjects(dynamicSubjects);
       setAvailableTopics(dynamicTopics);
 
-      // Filtrar por disciplinas do usuário se configurado
-      if (userSubjects.length > 0) {
-        examsWithValidQuestions = examsWithValidQuestions.filter(
-          (exam: any) => userSubjects.includes(exam.subject)
-        );
-        console.log(`Exames filtrados por disciplinas do usuário: ${examsWithValidQuestions.length}`);
-      }
+      // (Filtro por configuração acadêmica desativado para testes — mostra todos)
       
       console.log(`${examsWithValidQuestions.length} exames carregados com sucesso`);
       setAvailableExams(examsWithValidQuestions);
@@ -303,27 +296,31 @@ export default function EnhancedSimulatorScreen() {
 
   // SETUP MODE - Lista de exames reais
   if (mode === 'setup') {
-    // Filtrar exames por disciplina (filter) e por config acadêmica do usuário
-    const userSubjects = user?.competingDisciplines || [];
+    const normalize = (s: string) =>
+      s?.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    // Mostrar todos os exames; aplicar filtros manuais
     let filteredExams = availableExams;
 
-    // Se usuário tem config acadêmica, mostrar apenas exames dessas disciplinas
-    if (userSubjects.length > 0) {
-      const matchedSubjects = userSubjects.filter((s: string) => availableSubjects.includes(s));
-      if (matchedSubjects.length > 0) {
-        filteredExams = filteredExams.filter((e: any) => matchedSubjects.includes(e.subject));
-      }
+    if (filterInstitution) {
+      filteredExams = filteredExams.filter((e: any) =>
+        e.institution && normalize(e.institution) === normalize(filterInstitution)
+      );
     }
-
-    // Aplicar filtro de disciplina selecionado
     if (filterSubject) {
-      filteredExams = filteredExams.filter((e: any) => e.subject === filterSubject);
+      filteredExams = filteredExams.filter((e: any) =>
+        e.subject && normalize(e.subject) === normalize(filterSubject)
+      );
+    }
+    if (filterYear) {
+      filteredExams = filteredExams.filter((e: any) =>
+        String(e.year) === String(filterYear)
+      );
     }
 
-    // Disciplinas disponíveis para filtro (apenas as que têm exames)
-    const subjectsForFilter = userSubjects.length > 0
-      ? userSubjects.filter((s: string) => availableSubjects.includes(s))
-      : availableSubjects;
+    const institutionsForFilter = Array.from(new Set(availableExams.map((e: any) => e.institution).filter(Boolean))).sort();
+    const subjectsForFilter = Array.from(new Set(availableExams.map((e: any) => e.subject).filter(Boolean))).sort();
+    const yearsForFilter = Array.from(new Set(availableExams.map((e: any) => e.year).filter(Boolean))).sort((a, b) => Number(b) - Number(a));
 
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -341,41 +338,94 @@ export default function EnhancedSimulatorScreen() {
             </View>
           </View>
 
-          {/* Aviso de config acadêmica */}
-          {userSubjects.length > 0 && userSubjects.filter((s: string) => availableSubjects.includes(s)).length === 0 && (
-            <Card style={[styles.card, { backgroundColor: '#fff7ed', borderColor: '#fed7aa' }]}>
-              <Card.Content>
-                <Text style={{ fontSize: 13, color: '#9a3412', lineHeight: 18 }}>
-                  ⚠️ As disciplinas que configuraste ({userSubjects.join(', ')}) ainda não têm exames cadastrados. Mostrando todos os exames disponíveis.
-                </Text>
-              </Card.Content>
-            </Card>
-          )}
+          {/* Filtros manuais */}
+          <Card style={styles.card}>
+            <Card.Content>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: colors.textPrimary, flex: 1 }}>🎓 Filtros</Text>
+                {(filterInstitution || filterSubject || filterYear) && (
+                  <TouchableOpacity onPress={() => { setFilterInstitution(''); setFilterSubject(''); setFilterYear(''); }}>
+                    <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 13 }}>Limpar</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
 
-          {/* Filtro por disciplina */}
-          {subjectsForFilter.length > 1 && (
-            <View style={styles.filterContainer}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <Chip
-                  selected={filterSubject === ''}
-                  onPress={() => setFilterSubject('')}
-                  style={styles.filterChip}
-                >
-                  Todas
-                </Chip>
-                {subjectsForFilter.map(subj => (
-                  <Chip
-                    key={subj}
-                    selected={filterSubject === subj}
-                    onPress={() => setFilterSubject(filterSubject === subj ? '' : subj)}
-                    style={styles.filterChip}
-                  >
-                    {subj}
-                  </Chip>
-                ))}
-              </ScrollView>
-            </View>
-          )}
+              {institutionsForFilter.length > 1 && (
+                <View style={styles.filterContainer}>
+                  <Text style={styles.filterLabel}>Faculdade:</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <Chip
+                      selected={filterInstitution === ''}
+                      onPress={() => setFilterInstitution('')}
+                      style={styles.filterChip}
+                    >
+                      Todas
+                    </Chip>
+                    {institutionsForFilter.map((inst: string) => (
+                      <Chip
+                        key={inst}
+                        selected={filterInstitution === inst}
+                        onPress={() => setFilterInstitution(filterInstitution === inst ? '' : inst)}
+                        style={styles.filterChip}
+                      >
+                        {inst}
+                      </Chip>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+
+              {subjectsForFilter.length > 1 && (
+                <View style={styles.filterContainer}>
+                  <Text style={styles.filterLabel}>Disciplina:</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <Chip
+                      selected={filterSubject === ''}
+                      onPress={() => setFilterSubject('')}
+                      style={styles.filterChip}
+                    >
+                      Todas
+                    </Chip>
+                    {subjectsForFilter.map((subj: string) => (
+                      <Chip
+                        key={subj}
+                        selected={filterSubject === subj}
+                        onPress={() => setFilterSubject(filterSubject === subj ? '' : subj)}
+                        style={styles.filterChip}
+                      >
+                        {subj}
+                      </Chip>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+
+              {yearsForFilter.length > 1 && (
+                <View style={styles.filterContainer}>
+                  <Text style={styles.filterLabel}>Ano:</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <Chip
+                      selected={filterYear === ''}
+                      onPress={() => setFilterYear('')}
+                      style={styles.filterChip}
+                    >
+                      Todos
+                    </Chip>
+                    {yearsForFilter.map((year: any) => (
+                      <Chip
+                        key={String(year)}
+                        selected={filterYear === String(year)}
+                        onPress={() => setFilterYear(filterYear === String(year) ? '' : String(year))}
+                        style={styles.filterChip}
+                      >
+                        {year}
+                      </Chip>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+            </Card.Content>
+          </Card>
 
           {/* Modo de exame */}
           <Card style={styles.card}>
@@ -414,9 +464,7 @@ export default function EnhancedSimulatorScreen() {
                   Nenhum exame encontrado
                 </Text>
                 <Text style={{ fontSize: 13, color: colors.textSecondary, textAlign: 'center' }}>
-                  {userSubjects.length > 0
-                    ? 'Configura as tuas disciplinas no perfil ou aguarda novos exames.'
-                    : 'Ainda não há exames cadastrados no sistema.'}
+                  Ajusta os filtros ou aguarda novos exames.
                 </Text>
               </Card.Content>
             </Card>
@@ -719,6 +767,12 @@ const styles = StyleSheet.create({
   // Filter
   filterContainer: {
     marginBottom: spacing.md,
+  },
+  filterLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
   },
   filterChip: {
     marginRight: spacing.sm,
