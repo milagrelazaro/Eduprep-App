@@ -11,8 +11,8 @@ interface Notification {
   title: string;
   message: string;
   time: string;
-  type: 'info' | 'success' | 'warning' | 'promo';
-  read: boolean;
+  type: string;
+  read?: boolean;
 }
 
 export default function NotificationsScreen() {
@@ -38,7 +38,7 @@ export default function NotificationsScreen() {
       // Formatar tempo relativo
       const formatted = data.map(n => ({
         ...n,
-        time: getRelativeTime(n.createdAt),
+        time: getRelativeTime(n.createdAt || new Date()),
       }));
       
       setNotifications(formatted);

@@ -324,7 +324,7 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.lg, paddingBottom: 32 },
+  content: { padding: spacing.lg, paddingBottom: 120 },
   
   // Banner Completar Perfil
   completeBanner: { 

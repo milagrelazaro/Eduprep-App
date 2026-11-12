@@ -125,6 +125,19 @@ export const userService = {
       throw error;
     }
   },
+
+  // Delete user document from Firestore (admin only).
+  // Nota: a conta de autenticação no Firebase Auth não pode ser apagada
+  // pelo cliente — apenas o documento de perfil é removido.
+  async deleteUser(userId: string) {
+    try {
+      await deleteDoc(doc(db, USERS_COLLECTION, userId));
+      return true;
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      throw error;
+    }
+  },
 };
 
 // Exam Services
@@ -164,6 +177,23 @@ export const examService = {
       return { id: docRef.id, ...examMetadata };
     } catch (error) {
       console.error('Error creating exam:', error);
+      throw error;
+    }
+  },
+
+  // Check if an exam with the same institution+subject+year already exists
+  async checkExamExists(institution: string, subject: string, year: number) {
+    try {
+      const q = query(
+        collection(db, EXAMS_COLLECTION),
+        where('institution', '==', institution),
+        where('subject', '==', subject),
+        where('year', '==', year)
+      );
+      const querySnapshot = await getDocs(q);
+      return !querySnapshot.empty;
+    } catch (error) {
+      console.error('Error checking exam exists:', error);
       throw error;
     }
   },

@@ -11,13 +11,14 @@ import {
   serverTimestamp 
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { Payment, Subscription, SubscriptionPlan, PaymentMethod } from '../types';
+import { Payment, Subscription, SubscriptionPlan, PaymentMethod, AccessLevel } from '../types';
+import { ACCESS_PACKAGES } from '../data/accessPackages';
 
 const PAYMENTS_COLLECTION = 'payments';
 const SUBSCRIPTIONS_COLLECTION = 'subscriptions';
 
 export const paymentService = {
-  // Pricing plans
+  // Pricing plans (duração)
   pricingPlans: [
     {
       id: 'monthly',
@@ -60,6 +61,9 @@ export const paymentService = {
       popular: false,
     },
   ],
+
+  // Pacotes de acesso (nível de conteúdo)
+  accessPackages: ACCESS_PACKAGES,
 
   // Create payment
   async createPayment(paymentData: Omit<Payment, 'id' | 'createdAt' | 'completedAt'>) {
@@ -197,7 +201,8 @@ export const paymentService = {
     plan: SubscriptionPlan,
     paymentMethod: PaymentMethod,
     amount: number,
-    transactionId: string
+    transactionId: string,
+    accessLevel?: AccessLevel
   ) {
     try {
       const now = new Date();
@@ -219,11 +224,12 @@ export const paymentService = {
         price: amount,
         paymentMethod,
         transactionId,
+        accessLevel: accessLevel || 'course',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
 
-      return { id: docRef.id, userId, plan, expiresAt };
+      return { id: docRef.id, userId, plan, expiresAt, accessLevel };
     } catch (error) {
       console.error('Error creating subscription:', error);
       throw error;

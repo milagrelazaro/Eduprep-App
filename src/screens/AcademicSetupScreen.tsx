@@ -4,46 +4,63 @@ import { Text, Card, Button, Chip } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../store/authStore';
 import { colors, spacing, borderRadius, shadows } from '../theme/colors';
-
-const INSTITUTIONS = [
-  'UEM',
-  'UP',
-  'UCM',
-  'ISCTEM',
-  'Unilúrio',
-  'Universidade Zambeze',
-];
-
-const COURSES = [
-  'Medicina',
-  'Engenharia',
-  'Direito',
-  'Economia',
-  'Gestão',
-  'Informática',
-  'Arquitetura',
-  'Psicologia',
-];
-
-const SUBJECTS = [
-  'Matemática',
-  'Física',
-  'Química',
-  'Biologia',
-  'Português',
-  'Inglês',
-  'História',
-  'Geografia',
-];
+import {
+  EDITAL_UNIVERSITIES,
+  getCoursesBySchool,
+  type University,
+  type School,
+  type Course,
+} from '../data/editalData';
 
 export default function AcademicSetupScreen() {
   const navigation = useNavigation();
   const { user, updateUser } = useAuthStore();
-  
-  const [selectedInstitution, setSelectedInstitution] = useState(user?.intendedInstitution || '');
-  const [selectedCourse, setSelectedCourse] = useState(user?.intendedCourse || '');
+
+  // Seleções hierárquicas
+  const [selectedUniversity, setSelectedUniversity] = useState<University | null>(null);
+  const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>(user?.competingDisciplines || []);
   const [saving, setSaving] = useState(false);
+
+  // Restaurar seleção anterior (se existir)
+  useEffect(() => {
+    if (user?.intendedInstitution) {
+      const uni = EDITAL_UNIVERSITIES.find(u => u.name === user.intendedInstitution || u.shortName === user.intendedInstitution);
+      if (uni) {
+        setSelectedUniversity(uni);
+        if ((user as any).intendedSchool) {
+          const school = uni.schools.find(s => s.name === (user as any).intendedSchool);
+          if (school) {
+            setSelectedSchool(school);
+            if (user.intendedCourse) {
+              const course = school.courses.find(c => c.name === user.intendedCourse);
+              if (course) setSelectedCourse(course);
+            }
+          }
+        }
+      }
+    }
+  }, []);
+
+  const handleSelectUniversity = (uni: University) => {
+    setSelectedUniversity(uni);
+    setSelectedSchool(null);
+    setSelectedCourse(null);
+    setSelectedSubjects([]);
+  };
+
+  const handleSelectSchool = (school: School) => {
+    setSelectedSchool(school);
+    setSelectedCourse(null);
+    setSelectedSubjects([]);
+  };
+
+  const handleSelectCourse = (course: Course) => {
+    setSelectedCourse(course);
+    // Auto-preencher disciplinas do edital
+    setSelectedSubjects(course.examSubjects);
+  };
 
   const toggleSubject = (subject: string) => {
     if (selectedSubjects.includes(subject)) {
@@ -54,16 +71,18 @@ export default function AcademicSetupScreen() {
   };
 
   const handleSave = async () => {
-    if (!selectedInstitution) {
-      Alert.alert('Atenção', 'Selecione a instituição');
+    if (!selectedUniversity) {
+      Alert.alert('Atenção', 'Selecione a universidade');
       return;
     }
-
+    if (!selectedSchool) {
+      Alert.alert('Atenção', 'Selecione a escola/faculdade');
+      return;
+    }
     if (!selectedCourse) {
       Alert.alert('Atenção', 'Selecione o curso pretendido');
       return;
     }
-
     if (selectedSubjects.length === 0) {
       Alert.alert('Atenção', 'Selecione pelo menos uma disciplina');
       return;
@@ -72,11 +91,12 @@ export default function AcademicSetupScreen() {
     setSaving(true);
     try {
       await updateUser({
-        intendedInstitution: selectedInstitution,
-        intendedCourse: selectedCourse,
+        intendedInstitution: selectedUniversity.name,
+        intendedSchool: selectedSchool.name,
+        intendedCourse: selectedCourse.name,
         competingDisciplines: selectedSubjects,
-      });
-      
+      } as any);
+
       Alert.alert('Sucesso', 'Configuração acadêmica atualizada!', [
         { text: 'OK', onPress: () => navigation.goBack() }
       ]);
@@ -102,102 +122,144 @@ export default function AcademicSetupScreen() {
         </View>
       </View>
 
-      {/* Instituição */}
+      {/* Universidade */}
       <Card style={[styles.card, { backgroundColor: colors.white, borderRadius: borderRadius.xl, ...shadows.small }]}>
         <Card.Content style={styles.cardContent}>
           <View style={styles.sectionHeader}>
             <Text style={{ fontSize: 24, marginRight: spacing.sm }}>🏛️</Text>
-            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Instituição</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Universidade</Text>
           </View>
           <Text style={[styles.sectionDesc, { color: colors.textSecondary }]}>
-            Selecione a universidade/instituição para o exame
+            Selecione a universidade para o exame de admissão
           </Text>
           <View style={styles.chipsContainer}>
-            {INSTITUTIONS.map((institution) => (
+            {EDITAL_UNIVERSITIES.map((uni) => (
               <Chip
-                key={institution}
-                selected={selectedInstitution === institution}
-                onPress={() => setSelectedInstitution(institution)}
+                key={uni.name}
+                selected={selectedUniversity?.name === uni.name}
+                onPress={() => handleSelectUniversity(uni)}
                 style={[
                   styles.chip,
-                  selectedInstitution === institution && { backgroundColor: colors.secondary, borderColor: colors.primary }
+                  selectedUniversity?.name === uni.name && { backgroundColor: colors.secondary, borderColor: colors.primary }
                 ]}
-                textStyle={selectedInstitution === institution ? { color: colors.primary, fontWeight: '700' } : { color: colors.textSecondary, fontWeight: '600' }}
+                textStyle={selectedUniversity?.name === uni.name ? { color: colors.primary, fontWeight: '700' } : { color: colors.textSecondary, fontWeight: '600' }}
               >
-                {institution}
+                {uni.shortName}
               </Chip>
             ))}
           </View>
         </Card.Content>
       </Card>
 
-      {/* Curso Pretendido */}
-      <Card style={[styles.card, { backgroundColor: colors.white, borderRadius: borderRadius.xl, ...shadows.small }]}>
-        <Card.Content style={styles.cardContent}>
-          <View style={styles.sectionHeader}>
-            <Text style={{ fontSize: 24, marginRight: spacing.sm }}>🎓</Text>
-            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Curso Pretendido</Text>
-          </View>
-          <Text style={[styles.sectionDesc, { color: colors.textSecondary }]}>
-            Selecione o curso que pretendes ingressar
-          </Text>
-          <View style={styles.chipsContainer}>
-            {COURSES.map((course) => (
-              <Chip
-                key={course}
-                selected={selectedCourse === course}
-                onPress={() => setSelectedCourse(course)}
-                style={[
-                  styles.chip,
-                  selectedCourse === course && { backgroundColor: colors.secondary, borderColor: colors.primary }
-                ]}
-                textStyle={selectedCourse === course ? { color: colors.primary, fontWeight: '700' } : { color: colors.textSecondary, fontWeight: '600' }}
-              >
-                {course}
-              </Chip>
-            ))}
-          </View>
-        </Card.Content>
-      </Card>
+      {/* Escola/Faculdade */}
+      {selectedUniversity && (
+        <Card style={[styles.card, { backgroundColor: colors.white, borderRadius: borderRadius.xl, ...shadows.small }]}>
+          <Card.Content style={styles.cardContent}>
+            <View style={styles.sectionHeader}>
+              <Text style={{ fontSize: 24, marginRight: spacing.sm }}>🏫</Text>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Escola/Faculdade</Text>
+            </View>
+            <Text style={[styles.sectionDesc, { color: colors.textSecondary }]}>
+              Selecione a escola ou faculdade dentro de {selectedUniversity.shortName}
+            </Text>
+            <View style={styles.chipsContainer}>
+              {selectedUniversity.schools.map((school) => (
+                <Chip
+                  key={school.name}
+                  selected={selectedSchool?.name === school.name}
+                  onPress={() => handleSelectSchool(school)}
+                  style={[
+                    styles.chip,
+                    selectedSchool?.name === school.name && { backgroundColor: colors.secondary, borderColor: colors.primary }
+                  ]}
+                  textStyle={selectedSchool?.name === school.name ? { color: colors.primary, fontWeight: '700' } : { color: colors.textSecondary, fontWeight: '600' }}
+                >
+                  {school.name}
+                </Chip>
+              ))}
+            </View>
+          </Card.Content>
+        </Card>
+      )}
+
+      {/* Curso */}
+      {selectedSchool && selectedUniversity && (
+        <Card style={[styles.card, { backgroundColor: colors.white, borderRadius: borderRadius.xl, ...shadows.small }]}>
+          <Card.Content style={styles.cardContent}>
+            <View style={styles.sectionHeader}>
+              <Text style={{ fontSize: 24, marginRight: spacing.sm }}>🎓</Text>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Curso Pretendido</Text>
+            </View>
+            <Text style={[styles.sectionDesc, { color: colors.textSecondary }]}>
+              Selecione o curso — as disciplinas do exame serão preenchidas automaticamente
+            </Text>
+            <View style={styles.chipsContainer}>
+              {getCoursesBySchool(selectedUniversity.name, selectedSchool.name).map((course) => (
+                <Chip
+                  key={course.name}
+                  selected={selectedCourse?.name === course.name}
+                  onPress={() => handleSelectCourse(course)}
+                  style={[
+                    styles.chip,
+                    selectedCourse?.name === course.name && { backgroundColor: colors.secondary, borderColor: colors.primary }
+                  ]}
+                  textStyle={selectedCourse?.name === course.name ? { color: colors.primary, fontWeight: '700' } : { color: colors.textSecondary, fontWeight: '600' }}
+                >
+                  {course.name}
+                </Chip>
+              ))}
+            </View>
+          </Card.Content>
+        </Card>
+      )}
 
       {/* Disciplinas */}
-      <Card style={[styles.card, { backgroundColor: colors.white, borderRadius: borderRadius.xl, ...shadows.small }]}>
-        <Card.Content style={styles.cardContent}>
-          <View style={styles.sectionHeader}><Text style={{ fontSize: 24, marginRight: spacing.sm }}>📚</Text><Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Disciplinas de Exame</Text></View>
-          <Text style={[styles.sectionDesc, { color: colors.textSecondary }]}>
-            Selecione as disciplinas que cairão no teu exame ({selectedSubjects.length} selecionadas)
-          </Text>
-          <View style={styles.chipsContainer}>
-            {SUBJECTS.map((subject) => (
-              <Chip
-                key={subject}
-                selected={selectedSubjects.includes(subject)}
-                onPress={() => toggleSubject(subject)}
-                style={[
-                  styles.chip,
-                  selectedSubjects.includes(subject) && { backgroundColor: colors.successLight, borderColor: colors.success }
-                ]}
-                textStyle={selectedSubjects.includes(subject) ? { color: colors.success, fontWeight: '700' } : { color: colors.textSecondary, fontWeight: '600' }}
-              >
-                {subject}
-              </Chip>
-            ))}
-          </View>
-        </Card.Content>
-      </Card>
+      {selectedCourse && (
+        <Card style={[styles.card, { backgroundColor: colors.white, borderRadius: borderRadius.xl, ...shadows.small }]}>
+          <Card.Content style={styles.cardContent}>
+            <View style={styles.sectionHeader}>
+              <Text style={{ fontSize: 24, marginRight: spacing.sm }}>📚</Text>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Disciplinas de Exame</Text>
+            </View>
+            <Text style={[styles.sectionDesc, { color: colors.textSecondary }]}>
+              Disciplinas do edital para o teu curso ({selectedSubjects.length} selecionadas)
+            </Text>
+            <View style={styles.chipsContainer}>
+              {selectedCourse.examSubjects.map((subject) => (
+                <Chip
+                  key={subject}
+                  selected={selectedSubjects.includes(subject)}
+                  onPress={() => toggleSubject(subject)}
+                  style={[
+                    styles.chip,
+                    selectedSubjects.includes(subject) && { backgroundColor: colors.successLight, borderColor: colors.success }
+                  ]}
+                  textStyle={selectedSubjects.includes(subject) ? { color: colors.success, fontWeight: '700' } : { color: colors.textSecondary, fontWeight: '600' }}
+                >
+                  {subject}
+                </Chip>
+              ))}
+            </View>
+          </Card.Content>
+        </Card>
+      )}
 
       {/* Resumo */}
-      {selectedCourse && selectedSubjects.length > 0 && (
+      {selectedUniversity && selectedSchool && selectedCourse && selectedSubjects.length > 0 && (
         <Card style={[styles.card, { backgroundColor: colors.successLight, borderColor: colors.success, borderRadius: borderRadius.xl }]}>
           <Card.Content style={styles.cardContent}>
             <View style={styles.sectionHeader}>
               <Text style={{ fontSize: 24, marginRight: spacing.sm }}>✅</Text>
-              <Text style={[styles.sectionTitle, { color: colors.success }]}>
-                Configuração Atual
-              </Text>
+              <Text style={[styles.sectionTitle, { color: colors.success }]}>Configuração Atual</Text>
             </View>
-            <Text style={{ color: colors.success, marginBottom: spacing.sm }}>
-              <Text style={{ fontWeight: '700' }}>Curso:</Text> {selectedCourse}
+            <Text style={{ color: colors.success, marginBottom: spacing.xs }}>
+              <Text style={{ fontWeight: '700' }}>Universidade:</Text> {selectedUniversity.shortName}
+            </Text>
+            <Text style={{ color: colors.success, marginBottom: spacing.xs }}>
+              <Text style={{ fontWeight: '700' }}>Escola:</Text> {selectedSchool.name}
+            </Text>
+            <Text style={{ color: colors.success, marginBottom: spacing.xs }}>
+              <Text style={{ fontWeight: '700' }}>Curso:</Text> {selectedCourse.name}
             </Text>
             <Text style={{ color: colors.success }}>
               <Text style={{ fontWeight: '700' }}>Disciplinas:</Text> {selectedSubjects.join(', ')}
@@ -211,7 +273,7 @@ export default function AcademicSetupScreen() {
         mode="contained"
         onPress={handleSave}
         loading={saving}
-        disabled={saving || !selectedCourse || selectedSubjects.length === 0}
+        disabled={saving || !selectedUniversity || !selectedSchool || !selectedCourse || selectedSubjects.length === 0}
         style={[styles.saveButton, { backgroundColor: colors.primary, borderRadius: borderRadius.md }]}
         labelStyle={styles.saveButtonLabel}
         contentStyle={{ paddingVertical: spacing.sm }}

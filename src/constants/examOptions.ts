@@ -1,0 +1,36 @@
+// Listas de opções para cadastro de exames (seleção para evitar erros de digitação)
+export const EXAM_SUBJECTS = [
+  'Matemática',
+  'Física',
+  'Química',
+  'Biologia',
+  'Português',
+  'Inglês',
+  'Francês',
+  'História',
+  'Geografia',
+  'Filosofia',
+];
+
+export const EXAM_INSTITUTIONS = [
+  'UEM',
+  'UP',
+  'UCM',
+  'ISCTEM',
+  'Unilúrio',
+  'Universidade Zambeze',
+  'Universidade Save',
+  'Universidade Rovuma',
+  'Universidade Licungo',
+  'Universidade Joaquim Chissano (UJC)',
+  'ISPG',
+  'ISPU',
+  'ISRI',
+  'ISCED',
+  'ISArC',
+  'ISCTAC',
+  'ISMM',
+  'ISCISA',
+  'ESJ',
+  'Academia Militar',
+];

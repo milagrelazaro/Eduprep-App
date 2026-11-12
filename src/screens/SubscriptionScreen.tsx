@@ -6,7 +6,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useAuthStore } from '../store/authStore';
 import { paymentService } from '../services/paymentService';
-import { SubscriptionPlan, PaymentMethod } from '../types';
+import { SubscriptionPlan, PaymentMethod, AccessLevel } from '../types';
+import { ACCESS_PACKAGES, AccessPackage } from '../data/accessPackages';
 import { colors, spacing, borderRadius, shadows } from '../theme/colors';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -15,6 +16,7 @@ export default function SubscriptionScreen() {
   const navigation = useNavigation<Nav>();
   const { user } = useAuthStore();
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan>('monthly');
+  const [selectedAccessLevel, setSelectedAccessLevel] = useState<AccessLevel>('course');
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>('mpesa');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [receiptNumber, setReceiptNumber] = useState('');
@@ -81,6 +83,10 @@ export default function SubscriptionScreen() {
         await paymentService.processCashPayment(user.id, plan.price, selectedPlan, receiptNumber);
         Alert.alert('Sucesso', 'Pagamento registado! Aguarda verificação do administrador.');
       }
+
+      // Guardar accessLevel no perfil do utilizador
+      const { updateUser } = useAuthStore.getState();
+      await updateUser({ accessLevel: selectedAccessLevel });
 
       setShowPaymentModal(false);
       setPhoneNumber('');
@@ -199,6 +205,57 @@ export default function SubscriptionScreen() {
         </View>
       </View>
 
+      {/* Pacotes de Acesso */}
+      <Card style={[styles.methodCard, { marginBottom: spacing.lg }]}>
+        <Card.Content>
+          <Text style={{ fontWeight: '700', fontSize: 16, color: '#111827', marginBottom: 4 }}>
+            Escolhe o teu Pacote de Acesso
+          </Text>
+          <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 16 }}>
+            Define o nível de conteúdo a que terás acesso
+          </Text>
+
+          {ACCESS_PACKAGES.map((pkg) => {
+            const isSelected = selectedAccessLevel === pkg.accessLevel;
+            return (
+              <TouchableOpacity
+                key={pkg.id}
+                onPress={() => setSelectedAccessLevel(pkg.accessLevel)}
+                style={[
+                  styles.planCard,
+                  isSelected && styles.selectedPlanCard,
+                  pkg.popular && styles.popularPlanCard,
+                  { marginBottom: spacing.sm },
+                ]}
+              >
+                {pkg.popular && (
+                  <View style={styles.popularBadge}>
+                    <Text style={styles.popularBadgeText}>Recomendado</Text>
+                  </View>
+                )}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={styles.planName}>{pkg.name}</Text>
+                  <Text style={styles.planPrice}>{pkg.price} MZN</Text>
+                </View>
+                <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{pkg.description}</Text>
+                <View style={styles.planFeatures}>
+                  {pkg.features.slice(0, 3).map((feature: string, index: number) => (
+                    <View key={index} style={styles.featureItem}>
+                      <Text style={styles.featureBullet}>✓</Text>
+                      <Text style={styles.featureText}>{feature}</Text>
+                    </View>
+                  ))}
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </Card.Content>
+      </Card>
+
+      {/* Planos de Duração */}
+      <Text style={{ fontWeight: '700', fontSize: 16, color: '#111827', marginBottom: 12, marginTop: spacing.sm }}>
+        Duração da Subscrição
+      </Text>
       <View style={styles.plansContainer}>
         {paymentService.pricingPlans.map((plan) => (
           <PlanCard key={plan.id} plan={plan} />

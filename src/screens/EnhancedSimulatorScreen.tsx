@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Linking, Alert, Image } from 'react-native';
-import { Text, Card, Button, Chip, ProgressBar } from 'react-native-paper';
+import { Text, Card, Button, Chip, ProgressBar, Modal, Portal } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -9,6 +9,8 @@ import { examService, examResultService } from '../services/firebaseService';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { canAccessFullExam } from '../utils/premiumCheck';
+import { filterExamsByAccess } from '../data/accessPackages';
+import { EXAM_INSTITUTIONS, EXAM_SUBJECTS } from '../constants/examOptions';
 import { colors, borderRadius, spacing, typography, shadows } from '../theme/colors';
 
 // Institutions, subjects and topics will be dynamically loaded from Firebase exams
@@ -62,15 +64,32 @@ export default function EnhancedSimulatorScreen() {
           try {
             const examData = { id: examDoc.id, ...examDoc.data() };
             
-            // Buscar questões da subcoleção
+            // Buscar itens da subcoleção (questões + blocos de texto)
             const questionsSnapshot = await getDocs(
               collection(db, 'exams', examDoc.id, 'questions')
             );
             
-            const questions = questionsSnapshot.docs.map(qDoc => ({
+            const items = questionsSnapshot.docs.map(qDoc => ({
               id: qDoc.id,
               ...qDoc.data()
             }));
+            
+            // Ordenar pela posição definida pelo autor (order), com fallback para createdAt
+            items.sort((a: any, b: any) =>
+              ((a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER)) ||
+              ((a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0))
+            );
+            
+            // Blocos de texto viram contexto das questões seguintes (texto-base / divisores)
+            let currentContext = '';
+            const questions = items.filter((item: any) => {
+              if (item.type === 'text') {
+                currentContext = item.text || '';
+                return false;
+              }
+              item.contextText = currentContext;
+              return true;
+            });
             
             return { ...examData, questions };
           } catch (err) {
@@ -80,9 +99,9 @@ export default function EnhancedSimulatorScreen() {
         })
       );
       
-      // Filtrar apenas exames com questões e válidos
+      // Filtrar apenas exames com questões e válidos (rascunhos de cadastro incompleto não aparecem)
       let examsWithValidQuestions = examsWithQuestions.filter(
-        (exam: any) => exam && exam.questions && exam.questions.length > 0
+        (exam: any) => exam && exam.questions && exam.questions.length > 0 && exam.status !== 'draft'
       );
 
       // Extrair instituições, disciplinas e tópicos dinamicamente dos exames
@@ -107,13 +126,13 @@ export default function EnhancedSimulatorScreen() {
       if (dynamicSubjects.length > 0) setAvailableSubjects(dynamicSubjects);
       setAvailableTopics(dynamicTopics);
 
-      // (Filtro por configuração acadêmica desativado para testes — mostra todos)
-      
-      console.log(`${examsWithValidQuestions.length} exames carregados com sucesso`);
-      setAvailableExams(examsWithValidQuestions);
+      // Filtrar por pacote de acesso do utilizador
+      const filteredByAccess = filterExamsByAccess(examsWithValidQuestions, user || {});
+      console.log(`${filteredByAccess.length} exames disponíveis após filtro de acesso (${examsWithValidQuestions.length} total)`);
+      setAvailableExams(filteredByAccess);
       
       // Salvar no AsyncStorage para cache
-      await AsyncStorage.setItem('eduprep_exams', JSON.stringify(examsWithValidQuestions));
+      await AsyncStorage.setItem('eduprep_exams', JSON.stringify(filteredByAccess));
     } catch (error) {
       console.error('Error loading exams:', error);
       
@@ -140,6 +159,25 @@ export default function EnhancedSimulatorScreen() {
   const [showFeedback, setShowFeedback] = useState(false);
   const [timeLeft, setTimeLeft] = useState(3600);
   const [timerActive, setTimerActive] = useState(false);
+  const [showExitModal, setShowExitModal] = useState(false);
+
+  // Configuração de simulado
+  const [showExamConfigModal, setShowExamConfigModal] = useState(false);
+  const [pendingExam, setPendingExam] = useState<any>(null);
+  const [questionCount, setQuestionCount] = useState(0); // 0 = todas
+  const [customDuration, setCustomDuration] = useState(0); // 0 = usar duração do exame
+  const [practiceTopic, setPracticeTopic] = useState('');
+
+  // Select box genérico (tópico, faculdade, disciplina) — Alert/chips evitam scroll gigante
+  const [listPicker, setListPicker] = useState<{
+    title: string;
+    options: { label: string; value: string }[];
+    selected: string;
+    onSelect: (value: string) => void;
+  } | null>(null);
+
+  const QUESTION_COUNT_OPTIONS = [0, 10, 20, 30, 40];
+  const DURATION_OPTIONS = [0, 30, 60, 90, 120];
 
   // Timer effect
   useEffect(() => {
@@ -158,7 +196,7 @@ export default function EnhancedSimulatorScreen() {
     return () => clearInterval(interval);
   }, [timerActive, timeLeft]);
 
-  const startExamById = (exam: any) => {
+  const startExamById = (exam: any, config?: { questionCount?: number; duration?: number }) => {
     if (!exam || !exam.questions || exam.questions.length === 0) {
       Alert.alert('Erro', 'Este exame não tem questões disponíveis.');
       return;
@@ -168,7 +206,13 @@ export default function EnhancedSimulatorScreen() {
     setSelectedSubject(exam.subject || '');
     setSelectedInstitution(exam.institution || '');
     
-    const questions = exam.questions;
+    // Aplicar configuração do simulado (nº de questões e duração)
+    let questions = exam.questions;
+    if (config?.questionCount && config.questionCount > 0 && config.questionCount < questions.length) {
+      questions = questions.slice(0, config.questionCount);
+    }
+    const duration = config?.duration || exam.duration || 90;
+
     setExamQuestions(questions);
     setMode('exam');
     setCurrentQuestionIndex(0);
@@ -176,11 +220,48 @@ export default function EnhancedSimulatorScreen() {
     setSelectedAnswer(null);
     setShowFeedback(false);
     
-    if (isTimed && exam.duration) {
-      setTimeLeft(exam.duration * 60);
+    if (isTimed && duration) {
+      setTimeLeft(duration * 60);
       setTimerActive(true);
     }
-    console.log(`Simulador iniciado: ${exam.institution} - ${exam.subject} (${exam.year}), ${questions.length} questões, duração: ${exam.duration}min`);
+    console.log(`Simulador iniciado: ${exam.institution} - ${exam.subject} (${exam.year}), ${questions.length} questões, duração: ${duration}min`);
+  };
+
+  // Teste por Matéria: pratica apenas um tópico específico (ex: Funções Matemáticas)
+  const startTopicPractice = (topic: string, count: number) => {
+    const allQuestions = availableExams.flatMap((exam: any) =>
+      (exam.questions || []).map((q: any) => ({ ...q, examRef: `${exam.subject} - ${exam.institution} (${exam.year})` }))
+    );
+
+    const topicQuestions = allQuestions.filter(
+      (q: any) => q.topic && q.topic.toLowerCase().trim() === topic.toLowerCase().trim()
+    );
+
+    if (topicQuestions.length === 0) {
+      Alert.alert('Sem questões', `Não há questões cadastradas para o tópico "${topic}".`);
+      return;
+    }
+
+    // Embaralhar e limitar ao número escolhido
+    const shuffled = [...topicQuestions].sort(() => Math.random() - 0.5);
+    const selected = count > 0 ? shuffled.slice(0, count) : shuffled;
+
+    setCurrentExam(null);
+    setSelectedSubject(topic);
+    setSelectedInstitution('Prática por Matéria');
+    setExamQuestions(selected);
+    setMode('exam');
+    setCurrentQuestionIndex(0);
+    setAnswers({});
+    setSelectedAnswer(null);
+    setShowFeedback(false);
+
+    if (isTimed) {
+      const duration = customDuration || 30;
+      setTimeLeft(duration * 60);
+      setTimerActive(true);
+    }
+    console.log(`Teste por matéria iniciado: ${topic}, ${selected.length} questões`);
   };
 
   const handleSelectAnswer = (optionIndex: number) => {
@@ -321,6 +402,9 @@ export default function EnhancedSimulatorScreen() {
     const institutionsForFilter = Array.from(new Set(availableExams.map((e: any) => e.institution).filter(Boolean))).sort();
     const subjectsForFilter = Array.from(new Set(availableExams.map((e: any) => e.subject).filter(Boolean))).sort();
     const yearsForFilter = Array.from(new Set(availableExams.map((e: any) => e.year).filter(Boolean))).sort((a, b) => Number(b) - Number(a));
+    // Listas completas: constantes + o que existir nos exames
+    const allInstitutions = Array.from(new Set([...EXAM_INSTITUTIONS, ...institutionsForFilter])).sort();
+    const allSubjects = Array.from(new Set([...EXAM_SUBJECTS, ...subjectsForFilter])).sort();
 
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -350,55 +434,51 @@ export default function EnhancedSimulatorScreen() {
                 )}
               </View>
 
-              {institutionsForFilter.length > 1 && (
-                <View style={styles.filterContainer}>
-                  <Text style={styles.filterLabel}>Faculdade:</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <Chip
-                      selected={filterInstitution === ''}
-                      onPress={() => setFilterInstitution('')}
-                      style={styles.filterChip}
-                    >
-                      Todas
-                    </Chip>
-                    {institutionsForFilter.map((inst: string) => (
-                      <Chip
-                        key={inst}
-                        selected={filterInstitution === inst}
-                        onPress={() => setFilterInstitution(filterInstitution === inst ? '' : inst)}
-                        style={styles.filterChip}
-                      >
-                        {inst}
-                      </Chip>
-                    ))}
-                  </ScrollView>
-                </View>
-              )}
+              {/* Faculdade — select box com a lista completa */}
+              <View style={styles.filterContainer}>
+                <Text style={styles.filterLabel}>Faculdade:</Text>
+                <TouchableOpacity
+                  style={styles.topicSelector}
+                  onPress={() => setListPicker({
+                    title: '🎓 Escolhe a faculdade',
+                    options: [{ label: 'Todas', value: '' }, ...allInstitutions.map(i => ({ label: i, value: i }))],
+                    selected: filterInstitution,
+                    onSelect: setFilterInstitution,
+                  })}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={filterInstitution ? styles.topicSelectorText : styles.topicSelectorPlaceholder}
+                    numberOfLines={1}
+                  >
+                    {filterInstitution || 'Todas'}
+                  </Text>
+                  <Text style={{ fontSize: 14, color: colors.textSecondary }}>▼</Text>
+                </TouchableOpacity>
+              </View>
 
-              {subjectsForFilter.length > 1 && (
-                <View style={styles.filterContainer}>
-                  <Text style={styles.filterLabel}>Disciplina:</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <Chip
-                      selected={filterSubject === ''}
-                      onPress={() => setFilterSubject('')}
-                      style={styles.filterChip}
-                    >
-                      Todas
-                    </Chip>
-                    {subjectsForFilter.map((subj: string) => (
-                      <Chip
-                        key={subj}
-                        selected={filterSubject === subj}
-                        onPress={() => setFilterSubject(filterSubject === subj ? '' : subj)}
-                        style={styles.filterChip}
-                      >
-                        {subj}
-                      </Chip>
-                    ))}
-                  </ScrollView>
-                </View>
-              )}
+              {/* Disciplina — select box com a lista completa */}
+              <View style={styles.filterContainer}>
+                <Text style={styles.filterLabel}>Disciplina:</Text>
+                <TouchableOpacity
+                  style={styles.topicSelector}
+                  onPress={() => setListPicker({
+                    title: '📖 Escolhe a disciplina',
+                    options: [{ label: 'Todas', value: '' }, ...allSubjects.map(s => ({ label: s, value: s }))],
+                    selected: filterSubject,
+                    onSelect: setFilterSubject,
+                  })}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={filterSubject ? styles.topicSelectorText : styles.topicSelectorPlaceholder}
+                    numberOfLines={1}
+                  >
+                    {filterSubject || 'Todas'}
+                  </Text>
+                  <Text style={{ fontSize: 14, color: colors.textSecondary }}>▼</Text>
+                </TouchableOpacity>
+              </View>
 
               {yearsForFilter.length > 1 && (
                 <View style={styles.filterContainer}>
@@ -449,6 +529,52 @@ export default function EnhancedSimulatorScreen() {
             </Card.Content>
           </Card>
 
+          {/* Teste por Matéria */}
+          {availableTopics.length > 0 && (
+            <Card style={styles.card}>
+              <Card.Content>
+                <Text style={styles.sectionTitle}>📚 Teste por Matéria</Text>
+                <Text style={{ fontSize: 13, color: colors.textSecondary, marginBottom: 12, lineHeight: 18 }}>
+                  Escolhe um tópico e pratica apenas esse conteúdo (ex: Funções Matemáticas).
+                </Text>
+                {/* Select box — abre modal com a lista de tópicos (evita scroll gigante no celular) */}
+                <TouchableOpacity
+                  style={styles.topicSelector}
+                  onPress={() => setListPicker({
+                    title: '📚 Escolhe o tópico',
+                    options: availableTopics.map(t => ({ label: t, value: t })),
+                    selected: practiceTopic,
+                    onSelect: setPracticeTopic,
+                  })}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={practiceTopic ? styles.topicSelectorText : styles.topicSelectorPlaceholder}
+                    numberOfLines={1}
+                  >
+                    {practiceTopic || 'Seleciona um tópico…'}
+                  </Text>
+                  <Text style={{ fontSize: 14, color: colors.textSecondary }}>▼</Text>
+                </TouchableOpacity>
+                <Button
+                  mode="contained"
+                  onPress={() => {
+                    if (!practiceTopic) {
+                      Alert.alert('Escolhe um tópico', 'Seleciona um tópico para praticar.');
+                      return;
+                    }
+                    startTopicPractice(practiceTopic, 0);
+                  }}
+                  disabled={!practiceTopic}
+                  style={styles.startButton}
+                  icon="play"
+                >
+                  Iniciar Teste ({practiceTopic || 'seleciona um tópico'})
+                </Button>
+              </Card.Content>
+            </Card>
+          )}
+
           {/* Lista de Exames */}
           {loading && (
             <View style={{ padding: 40, alignItems: 'center' }}>
@@ -473,7 +599,12 @@ export default function EnhancedSimulatorScreen() {
           {!loading && filteredExams.map((exam: any) => (
             <TouchableOpacity
               key={exam.id}
-              onPress={() => startExamById(exam)}
+              onPress={() => {
+                setPendingExam(exam);
+                setQuestionCount(0);
+                setCustomDuration(0);
+                setShowExamConfigModal(true);
+              }}
               activeOpacity={0.7}
             >
               <Card style={styles.examListItem}>
@@ -499,6 +630,120 @@ export default function EnhancedSimulatorScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
+
+        {/* Modal de Configuração do Simulado */}
+        <Portal>
+          <Modal
+            visible={showExamConfigModal}
+            onDismiss={() => setShowExamConfigModal(false)}
+            contentContainerStyle={styles.configModalContainer}
+          >
+            <Card>
+              <Card.Content>
+                <Text style={styles.configModalTitle}>⚙️ Configurar Simulado</Text>
+                {pendingExam && (
+                  <Text style={styles.configModalSubtitle}>
+                    {pendingExam.subject} - {pendingExam.institution} ({pendingExam.year})
+                  </Text>
+                )}
+
+                <Text style={styles.configLabel}>Número de Questões</Text>
+                <View style={styles.chipContainer}>
+                  {QUESTION_COUNT_OPTIONS.map((count) => (
+                    <Chip
+                      key={count}
+                      selected={questionCount === count}
+                      onPress={() => setQuestionCount(count)}
+                      style={[styles.chip, questionCount === count && styles.chipSelected]}
+                      textStyle={questionCount === count ? styles.chipTextSelected : styles.chipText}
+                    >
+                      {count === 0 ? 'Todas' : count}
+                    </Chip>
+                  ))}
+                </View>
+
+                <Text style={styles.configLabel}>Duração</Text>
+                <View style={styles.chipContainer}>
+                  {DURATION_OPTIONS.map((dur) => (
+                    <Chip
+                      key={dur}
+                      selected={customDuration === dur}
+                      onPress={() => setCustomDuration(dur)}
+                      style={[styles.chip, customDuration === dur && styles.chipSelected]}
+                      textStyle={customDuration === dur ? styles.chipTextSelected : styles.chipText}
+                    >
+                      {dur === 0 ? 'Padrão' : `${dur} min`}
+                    </Chip>
+                  ))}
+                </View>
+
+                <View style={styles.configModalActions}>
+                  <Button
+                    mode="outlined"
+                    onPress={() => setShowExamConfigModal(false)}
+                    style={styles.configModalButton}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    mode="contained"
+                    onPress={() => {
+                      setShowExamConfigModal(false);
+                      if (pendingExam) {
+                        startExamById(pendingExam, {
+                          questionCount,
+                          duration: customDuration || pendingExam.duration || 90,
+                        });
+                      }
+                    }}
+                    style={styles.configModalButton}
+                  >
+                    Iniciar
+                  </Button>
+                </View>
+              </Card.Content>
+            </Card>
+          </Modal>
+
+          {/* Seletor genérico de lista (tópico, faculdade, disciplina) */}
+          <Modal
+            visible={!!listPicker}
+            onDismiss={() => setListPicker(null)}
+            contentContainerStyle={styles.configModalContainer}
+          >
+            <Card>
+              <Card.Content>
+                <Text style={styles.configModalTitle}>{listPicker?.title}</Text>
+                <ScrollView style={{ maxHeight: 340 }} showsVerticalScrollIndicator={true}>
+                  {listPicker?.options.map((opt) => (
+                    <TouchableOpacity
+                      key={opt.value || '__all__'}
+                      style={[styles.topicOption, listPicker.selected === opt.value && styles.topicOptionSelected]}
+                      onPress={() => {
+                        listPicker.onSelect(opt.value);
+                        setListPicker(null);
+                      }}
+                    >
+                      <Text style={[styles.topicOptionText, listPicker.selected === opt.value && styles.topicOptionTextSelected]}>
+                        {opt.label}
+                      </Text>
+                      {listPicker.selected === opt.value && (
+                        <Text style={{ color: colors.primary, fontWeight: '700' }}>✓</Text>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+                <Button
+                  mode="outlined"
+                  onPress={() => setListPicker(null)}
+                  style={{ marginTop: spacing.sm }}
+                >
+                  Fechar
+                </Button>
+              </Card.Content>
+            </Card>
+          </Modal>
+        </Portal>
       </SafeAreaView>
     );
   }
@@ -513,12 +758,7 @@ export default function EnhancedSimulatorScreen() {
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.examHeader}>
           <View style={styles.examHeaderTop}>
-            <TouchableOpacity onPress={() => {
-              Alert.alert('Sair do Simulado', 'Deseja realmente sair? Seu progresso será perdido.', [
-                { text: 'Cancelar', style: 'cancel' },
-                { text: 'Sair', onPress: resetSimulator, style: 'destructive' },
-              ]);
-            }} style={{ padding: 8 }}>
+            <TouchableOpacity onPress={() => setShowExitModal(true)} style={{ padding: 8 }}>
               <Text style={{ fontSize: 24 }}>✕</Text>
             </TouchableOpacity>
             <View style={{flex: 1}}>
@@ -539,6 +779,15 @@ export default function EnhancedSimulatorScreen() {
           <ProgressBar progress={progress} color="#4f46e5" style={{height: 4}}/>
         </View>
         <ScrollView contentContainerStyle={styles.examContent}>
+          {/* Texto-base / divisor aplicável a esta questão */}
+          {currentQuestion.contextText ? (
+            <Card style={styles.contextCard}>
+              <Card.Content>
+                <Text style={styles.contextLabel}>📄 Texto</Text>
+                <Text style={styles.contextText}>{currentQuestion.contextText}</Text>
+              </Card.Content>
+            </Card>
+          ) : null}
           <Card style={styles.questionCard}>
             <Card.Content>
               <Text style={styles.questionText}>{currentQuestion.text}</Text>
@@ -603,6 +852,44 @@ export default function EnhancedSimulatorScreen() {
           {showFeedback && (<Card style={[styles.feedbackCard, {backgroundColor: isCorrect ? '#ecfdf5' : '#fef2f2'}]}><Card.Content><Text style={[styles.feedbackTitle, {color: isCorrect ? '#10b981' : '#ef4444'}]}>{isCorrect ? currentQuestion.correctFeedback : currentQuestion.incorrectFeedback}</Text><Text style={styles.explanation}>{currentQuestion.explanation}</Text><Button mode="outlined" onPress={() => openYouTube(currentQuestion.learnMoreUrl || '')} icon="youtube" style={styles.youtubeButton} labelStyle={{color: '#ef4444'}}>{isCorrect ? 'Saiba Mais no YouTube' : 'Ver Explicação no YouTube'}</Button></Card.Content></Card>)}
           <View style={styles.actionButtons}>{!showFeedback ? (<Button mode="contained" onPress={confirmAnswer} disabled={selectedAnswer === null} style={styles.confirmButton} contentStyle={{ paddingVertical: 8 }}>Confirmar Resposta</Button>) : (<Button mode="contained" onPress={nextQuestion} style={styles.nextButton} contentStyle={{ paddingVertical: 8 }}>{currentQuestionIndex < examQuestions.length - 1 ? 'Próxima Questão' : 'Ver Resultado'}</Button>)}</View>
         </ScrollView>
+
+        {/* Modal de Confirmação de Saída */}
+        <Portal>
+          <Modal
+            visible={showExitModal}
+            onDismiss={() => setShowExitModal(false)}
+            contentContainerStyle={styles.exitModalContainer}
+          >
+            <Card>
+              <Card.Content>
+                <Text style={styles.exitModalTitle}>Sair do Simulado</Text>
+                <Text style={styles.exitModalText}>
+                  Deseja realmente sair? Seu progresso será perdido.
+                </Text>
+                <View style={styles.exitModalActions}>
+                  <Button
+                    mode="outlined"
+                    onPress={() => setShowExitModal(false)}
+                    style={styles.exitModalButton}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    mode="contained"
+                    buttonColor="#ef4444"
+                    onPress={() => {
+                      setShowExitModal(false);
+                      resetSimulator();
+                    }}
+                    style={styles.exitModalButton}
+                  >
+                    Sair
+                  </Button>
+                </View>
+              </Card.Content>
+            </Card>
+          </Modal>
+        </Portal>
       </SafeAreaView>
     );
   }
@@ -677,6 +964,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: spacing.lg,
+    paddingBottom: 120,
   },
   
   // Header estilo Yango
@@ -904,13 +1192,36 @@ const styles = StyleSheet.create({
   
   // Question Card
   questionCard: {
-    marginBottom: spacing.lg,
-    borderRadius: borderRadius.xl,
     backgroundColor: colors.white,
+    borderRadius: borderRadius.xl,
+    marginBottom: spacing.lg,
     ...shadows.small,
+  },
+  contextCard: {
+    backgroundColor: '#fffbeb',
+    borderRadius: borderRadius.xl,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: '#fde68a',
+    borderLeftWidth: 4,
+    borderLeftColor: '#f59e0b',
+  },
+  contextLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#b45309',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  contextText: {
+    fontSize: 14,
+    color: '#78350f',
+    lineHeight: 22,
   },
   examContent: {
     padding: spacing.lg,
+    paddingBottom: 120,
   },
   questionText: {
     fontSize: 17,
@@ -974,6 +1285,127 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   
+  // Exit Modal
+  exitModalContainer: {
+    padding: spacing.lg,
+  },
+  exitModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
+  },
+  exitModalText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: spacing.lg,
+  },
+  exitModalActions: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  exitModalButton: {
+    flex: 1,
+  },
+
+  // Select box de tópico (Teste por Matéria)
+  topicSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    marginBottom: spacing.md,
+  },
+  topicSelectorText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    flex: 1,
+    marginRight: 8,
+  },
+  topicSelectorPlaceholder: {
+    fontSize: 14,
+    color: colors.textTertiary,
+    flex: 1,
+    marginRight: 8,
+  },
+  topicOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: borderRadius.sm,
+    marginBottom: 4,
+    backgroundColor: colors.grayLight,
+  },
+  topicOptionSelected: {
+    backgroundColor: colors.primary + '18',
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  topicOptionText: {
+    fontSize: 14,
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  topicOptionTextSelected: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+
+  // Config Modal (Simulado)
+  configModalContainer: {
+    padding: spacing.lg,
+  },
+  configModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  configModalSubtitle: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginBottom: spacing.lg,
+  },
+  configLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
+  },
+  configModalActions: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.sm,
+  },
+  configModalButton: {
+    flex: 1,
+  },
+
+  // Chips selecionados
+  chipSelected: {
+    backgroundColor: colors.secondary,
+    borderColor: colors.primary,
+  },
+  chipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  chipTextSelected: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primaryDark,
+  },
+
   // Feedback
   feedbackCard: {
     marginBottom: spacing.lg,
@@ -1013,6 +1445,7 @@ const styles = StyleSheet.create({
   // Result
   resultContent: {
     padding: spacing.lg,
+    paddingBottom: 120,
   },
   resultHeader: {
     alignItems: 'center',

@@ -30,7 +30,9 @@ export interface User {
   // Profile data
   intendedCourse?: string;
   intendedInstitution?: string;
+  intendedSchool?: string;
   competingDisciplines?: string[];
+  accessLevel?: AccessLevel;
   focus?: 'exams' | 'tutoring' | 'both';
 
   // Referral system
@@ -204,6 +206,9 @@ export interface ExamCatalogItem {
 }
 
 export type SubscriptionPlan = 'monthly' | 'yearly' | 'lifetime';
+
+/** Nível de acesso aos exames baseado no pacote contratado */
+export type AccessLevel = 'course' | 'school' | 'university' | 'all';
 export type PaymentMethod = 'mpesa' | 'emola' | 'card';
 
 export interface Subscription {
@@ -216,6 +221,7 @@ export interface Subscription {
   price: number;
   paymentMethod: PaymentMethod;
   transactionId?: string;
+  accessLevel?: AccessLevel;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -312,6 +318,18 @@ export interface FraudAlert {
   severity: 'low' | 'medium' | 'high';
   resolved: boolean;
   createdAt: Date;
+}
+
+// Notification Types
+export interface Notification {
+  id: string;
+  userId: string;
+  type: string;
+  title: string;
+  message: string;
+  data?: Record<string, any>;
+  read?: boolean;
+  createdAt?: Date;
 }
 
 // Promo Code Types

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Image, TouchableOpacity, Alert } from 'react-native';
-import { Text, Card, Searchbar, Button, Portal, Modal, TextInput, Switch, ProgressBar } from 'react-native-paper';
-import { useNavigation } from '@react-navigation/native';
+import { Text, Card, Searchbar, Button, Portal, Modal, TextInput, Switch, ProgressBar, Snackbar } from 'react-native-paper';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { userService, authService } from '../services/firebaseService';
 import { referralService } from '../services/referralService';
+import { auditService } from '../services/auditService';
 import { UserRole, Promoter, ReferralLead } from '../types';
 import { useAuthStore } from '../store/authStore';
 import LogoutModal from '../components/LogoutModal';
@@ -68,12 +69,19 @@ function StatusBadge({ status }: { status: string }) {
 
 export default function AdminPanelScreen() {
   const navigation = useNavigation<Nav>();
-  const { logout } = useAuthStore();
+  const { user: currentUser, logout } = useAuthStore();
   const [users, setUsers] = useState<any[]>([]);
   const [examResults, setExamResults] = useState<any[]>([]);
+  const [examStatusCounts, setExamStatusCounts] = useState({ total: 0, approved: 0, pending: 0, rejected: 0 });
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [promoters, setPromoters] = useState<Promoter[]>([]);
   const [selectedPromoter, setSelectedPromoter] = useState<Promoter | null>(null);
   const [promoterLeads, setPromoterLeads] = useState<ReferralLead[]>([]);
+  const [promoterExamStats, setPromoterExamStats] = useState<{ [promoterId: string]: { total: number; approved: number; rejected: number; pending: number } }>({});
+  const [promoterExams, setPromoterExams] = useState<{ [promoterId: string]: any[] }>({});
+
+  // Preço base por exame aprovado usado para calcular a comissão do promotor
+  const EXAM_BASE_PRICE = 500;
   const [filter, setFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<any>(null);
@@ -102,6 +110,28 @@ export default function AdminPanelScreen() {
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'processing' | 'completed' | 'error'>('idle');
   const [uploadError, setUploadError] = useState('');
 
+  // Confirmação via modal (Alert.alert com botões não funciona no web)
+  const [confirmAction, setConfirmAction] = useState<{
+    title: string;
+    message: string;
+    confirmLabel: string;
+    destructive?: boolean;
+    onConfirm: () => Promise<void>;
+  } | null>(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
+  const [snackbar, setSnackbar] = useState<{ message: string; error?: boolean } | null>(null);
+
+  const runConfirm = async () => {
+    if (!confirmAction) return;
+    setConfirmBusy(true);
+    try {
+      await confirmAction.onConfirm();
+    } finally {
+      setConfirmBusy(false);
+      setConfirmAction(null);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -122,6 +152,44 @@ export default function AdminPanelScreen() {
       // Carregar promotores
       const promotersData = await referralService.getAllPromoters();
       setPromoters(promotersData);
+
+      // Carregar exames e calcular estatísticas por promotor (aprovados/rejeitados/pendentes)
+      const examsQuery = query(collection(db, 'exams'));
+      const examsSnapshot = await getDocs(examsQuery);
+      const statsMap: { [promoterId: string]: { total: number; approved: number; rejected: number; pending: number } } = {};
+      const examsByUploader: { [promoterId: string]: any[] } = {};
+      examsSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        const uploadedBy = data.uploadedBy;
+        if (!uploadedBy) return;
+        if (!statsMap[uploadedBy]) {
+          statsMap[uploadedBy] = { total: 0, approved: 0, rejected: 0, pending: 0 };
+        }
+        if (!examsByUploader[uploadedBy]) {
+          examsByUploader[uploadedBy] = [];
+        }
+        examsByUploader[uploadedBy].push({ id: doc.id, ...data });
+        statsMap[uploadedBy].total += 1;
+        if (data.status === 'approved') statsMap[uploadedBy].approved += 1;
+        else if (data.status === 'rejected') statsMap[uploadedBy].rejected += 1;
+        else statsMap[uploadedBy].pending += 1;
+      });
+      setPromoterExamStats(statsMap);
+      setPromoterExams(examsByUploader);
+
+      // Contadores globais de exames por status
+      const counts = { total: examsSnapshot.size, approved: 0, pending: 0, rejected: 0 };
+      examsSnapshot.docs.forEach(d => {
+        const status = d.data().status;
+        if (status === 'approved') counts.approved += 1;
+        else if (status === 'rejected') counts.rejected += 1;
+        else counts.pending += 1;
+      });
+      setExamStatusCounts(counts);
+
+      // Registos de auditoria (quem fez o quê)
+      const logs = await auditService.getRecentLogs(15);
+      setAuditLogs(logs);
 
       // Carregar resultados de simulados do Firebase
       const resultsQuery = query(
@@ -163,7 +231,9 @@ export default function AdminPanelScreen() {
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useFocusEffect(
+    React.useCallback(() => { loadData(); }, [])
+  );
 
   const filtered = users.filter(u =>
     u.name?.toLowerCase().includes(filter.toLowerCase()) ||
@@ -176,33 +246,96 @@ export default function AdminPanelScreen() {
     
     switch (action) {
       case 'block':
-        Alert.alert(
-          'Bloquear Utilizador',
-          `Tem certeza que deseja bloquear ${user.name}?`,
-          [
-            { text: 'Cancelar', style: 'cancel' },
-            {
-              text: 'Bloquear',
-              style: 'destructive',
-              onPress: async () => {
-                try {
-                  await userService.updateUser(user.id, { status: 'suspended' });
-                  Alert.alert('Sucesso', 'Utilizador bloqueado com sucesso');
-                  loadData();
-                } catch (error) {
-                  Alert.alert('Erro', 'Não foi possível bloquear o utilizador');
-                }
-              },
-            },
-          ]
-        );
+        setConfirmAction({
+          title: 'Bloquear Utilizador',
+          message: `Tem certeza que deseja bloquear ${user.name}?`,
+          confirmLabel: 'Bloquear',
+          destructive: true,
+          onConfirm: async () => {
+            try {
+              await userService.updateUser(user.id, { status: 'suspended' });
+              auditService.log({
+                actorId: currentUser?.id || '',
+                actorName: currentUser?.name || '',
+                actorRole: currentUser?.role || '',
+                action: 'user_blocked',
+                entity: 'user',
+                entityId: user.id,
+                description: `Bloqueou o utilizador ${user.name} (${user.email})`,
+              });
+              setSnackbar({ message: 'Utilizador bloqueado com sucesso' });
+              loadData();
+            } catch (error) {
+              console.error('Erro ao bloquear utilizador:', error);
+              setSnackbar({ message: 'Não foi possível bloquear o utilizador', error: true });
+            }
+          },
+        });
         break;
       case 'delete':
-        Alert.alert(
-          'Apagar Utilizador',
-          'Esta funcionalidade será implementada em breve. Por enquanto, você pode bloquear o utilizador.',
-          [{ text: 'OK' }]
-        );
+        setConfirmAction({
+          title: 'Apagar Utilizador',
+          message: `Tem certeza que deseja apagar ${user.name}? Esta ação remove o perfil permanentemente e não pode ser desfeita.`,
+          confirmLabel: 'Apagar',
+          destructive: true,
+          onConfirm: async () => {
+            try {
+              await userService.deleteUser(user.id);
+              auditService.log({
+                actorId: currentUser?.id || '',
+                actorName: currentUser?.name || '',
+                actorRole: currentUser?.role || '',
+                action: 'user_deleted',
+                entity: 'user',
+                entityId: user.id,
+                description: `Apagou o utilizador ${user.name} (${user.email})`,
+              });
+              setSnackbar({ message: 'Utilizador apagado com sucesso' });
+              loadData();
+            } catch (error) {
+              console.error('Erro ao apagar utilizador:', error);
+              setSnackbar({ message: 'Não foi possível apagar o utilizador', error: true });
+            }
+          },
+        });
+        break;
+      case 'makePromoter':
+        setConfirmAction({
+          title: 'Tornar Promotor',
+          message: `Deseja tornar ${user.name} em promotor? Será criado um perfil de promotor com 10% de comissão e o utilizador passará a ter acesso ao painel de promotor.`,
+          confirmLabel: 'Confirmar',
+          onConfirm: async () => {
+            try {
+              const existing = await referralService.getPromoterByUserId(user.id);
+              if (existing) {
+                setSnackbar({ message: 'Este utilizador já é promotor.', error: true });
+                return;
+              }
+              await referralService.createPromoter({
+                userId: user.id,
+                name: user.name || user.email,
+                email: (user.email || '').toLowerCase(),
+                commissionRate: 10,
+                status: 'active',
+              });
+              await userService.updateUser(user.id, { role: UserRole.PROMOTER });
+              auditService.log({
+                actorId: currentUser?.id || '',
+                actorName: currentUser?.name || '',
+                actorRole: currentUser?.role || '',
+                action: 'user_promoted',
+                entity: 'user',
+                entityId: user.id,
+                description: `Tornou ${user.name} (${user.email}) promotor`,
+              });
+              setSnackbar({ message: `${user.name} agora é promotor!` });
+              loadData();
+            } catch (error) {
+              console.error('Erro ao tornar promotor:', error);
+              setSnackbar({ message: 'Não foi possível tornar o utilizador promotor', error: true });
+            }
+          },
+        });
         break;
       case 'resetPassword':
         setResetEmail(user.email);
@@ -251,6 +384,16 @@ export default function AdminPanelScreen() {
         email: newPromoterEmail.toLowerCase(),
         commissionRate: parseFloat(newPromoterCommission),
         status: 'active',
+      });
+
+      auditService.log({
+        actorId: currentUser?.id || '',
+        actorName: currentUser?.name || '',
+        actorRole: currentUser?.role || '',
+        action: 'promoter_created',
+        entity: 'promoter',
+        entityId: userData.id,
+        description: `Criou o promotor ${newPromoterName} (${newPromoterEmail.toLowerCase()}) com ${newPromoterCommission}% de comissão`,
       });
 
       // Enviar email com credenciais se solicitado
@@ -415,47 +558,57 @@ export default function AdminPanelScreen() {
 
     switch (action) {
       case 'suspend':
-        Alert.alert(
-          'Suspender Promotor',
-          `Tem certeza que deseja suspender ${promoter.name}?`,
-          [
-            { text: 'Cancelar', style: 'cancel' },
-            {
-              text: 'Suspender',
-              style: 'destructive',
-              onPress: async () => {
-                try {
-                  await referralService.updatePromoter(promoter.id, { status: 'suspended' });
-                  Alert.alert('Sucesso', 'Promotor suspenso com sucesso');
-                  loadData();
-                } catch (error) {
-                  Alert.alert('Erro', 'Não foi possível suspender o promotor');
-                }
-              },
-            },
-          ]
-        );
+        setConfirmAction({
+          title: 'Suspender Promotor',
+          message: `Tem certeza que deseja suspender ${promoter.name}?`,
+          confirmLabel: 'Suspender',
+          destructive: true,
+          onConfirm: async () => {
+            try {
+              await referralService.updatePromoter(promoter.id, { status: 'suspended' });
+              auditService.log({
+                actorId: currentUser?.id || '',
+                actorName: currentUser?.name || '',
+                actorRole: currentUser?.role || '',
+                action: 'promoter_suspended',
+                entity: 'promoter',
+                entityId: promoter.id,
+                description: `Suspendeu o promotor ${promoter.name} (${promoter.email})`,
+              });
+              setSnackbar({ message: 'Promotor suspenso com sucesso' });
+              loadData();
+            } catch (error) {
+              console.error('Erro ao suspender promotor:', error);
+              setSnackbar({ message: 'Não foi possível suspender o promotor', error: true });
+            }
+          },
+        });
         break;
       case 'activate':
-        Alert.alert(
-          'Ativar Promotor',
-          `Tem certeza que deseja ativar ${promoter.name}?`,
-          [
-            { text: 'Cancelar', style: 'cancel' },
-            {
-              text: 'Ativar',
-              onPress: async () => {
-                try {
-                  await referralService.updatePromoter(promoter.id, { status: 'active' });
-                  Alert.alert('Sucesso', 'Promotor ativado com sucesso');
-                  loadData();
-                } catch (error) {
-                  Alert.alert('Erro', 'Não foi possível ativar o promotor');
-                }
-              },
-            },
-          ]
-        );
+        setConfirmAction({
+          title: 'Ativar Promotor',
+          message: `Tem certeza que deseja ativar ${promoter.name}?`,
+          confirmLabel: 'Ativar',
+          onConfirm: async () => {
+            try {
+              await referralService.updatePromoter(promoter.id, { status: 'active' });
+              auditService.log({
+                actorId: currentUser?.id || '',
+                actorName: currentUser?.name || '',
+                actorRole: currentUser?.role || '',
+                action: 'promoter_activated',
+                entity: 'promoter',
+                entityId: promoter.id,
+                description: `Ativou o promotor ${promoter.name} (${promoter.email})`,
+              });
+              setSnackbar({ message: 'Promotor ativado com sucesso' });
+              loadData();
+            } catch (error) {
+              console.error('Erro ao ativar promotor:', error);
+              setSnackbar({ message: 'Não foi possível ativar o promotor', error: true });
+            }
+          },
+        });
         break;
       case 'viewLeads':
         handleViewPromoterLeads(promoter);
@@ -648,6 +801,27 @@ export default function AdminPanelScreen() {
               Gerenciar
             </Button>
           </View>
+
+          {/* Contadores de exames por status */}
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
+            <View style={{ flex: 1, backgroundColor: '#fef3c7', borderRadius: 12, paddingVertical: 10, alignItems: 'center' }}>
+              <Text style={{ fontSize: 20, fontWeight: '800', color: '#b45309' }}>{examStatusCounts.pending}</Text>
+              <Text style={{ fontSize: 10, fontWeight: '700', color: '#92400e', textTransform: 'uppercase' }}>Pendentes</Text>
+            </View>
+            <View style={{ flex: 1, backgroundColor: '#ecfdf5', borderRadius: 12, paddingVertical: 10, alignItems: 'center' }}>
+              <Text style={{ fontSize: 20, fontWeight: '800', color: '#047857' }}>{examStatusCounts.approved}</Text>
+              <Text style={{ fontSize: 10, fontWeight: '700', color: '#065f46', textTransform: 'uppercase' }}>Aprovados</Text>
+            </View>
+            <View style={{ flex: 1, backgroundColor: '#fef2f2', borderRadius: 12, paddingVertical: 10, alignItems: 'center' }}>
+              <Text style={{ fontSize: 20, fontWeight: '800', color: '#b91c1c' }}>{examStatusCounts.rejected}</Text>
+              <Text style={{ fontSize: 10, fontWeight: '700', color: '#991b1b', textTransform: 'uppercase' }}>Rejeitados</Text>
+            </View>
+            <View style={{ flex: 1, backgroundColor: '#eef2ff', borderRadius: 12, paddingVertical: 10, alignItems: 'center' }}>
+              <Text style={{ fontSize: 20, fontWeight: '800', color: '#4338ca' }}>{examStatusCounts.total}</Text>
+              <Text style={{ fontSize: 10, fontWeight: '700', color: '#3730a3', textTransform: 'uppercase' }}>Total</Text>
+            </View>
+          </View>
+
           <View style={{ alignItems: 'center', paddingVertical: 24, backgroundColor: '#f5f3ff', borderRadius: 12, borderWidth: 2, borderColor: '#ddd6fe', borderStyle: 'dashed' }}>
             <Text style={{ fontSize: 48, marginBottom: 8 }}>�</Text>
             <Text style={{ fontSize: 14, fontWeight: '600', color: '#5b21b6', marginBottom: 4 }}>
@@ -657,6 +831,31 @@ export default function AdminPanelScreen() {
               Cadastre questões manualmente com imagens (ideal para Matemática) ou importe via CSV para outras disciplinas
             </Text>
           </View>
+        </Card.Content>
+      </Card>
+
+      {/* Registo de Auditoria */}
+      <Card style={styles.tableCard}>
+        <Card.Content>
+          <View style={styles.tableHeader}>
+            <Text variant="titleMedium" style={{ fontWeight: '800', color: '#111827' }}>Registo de Auditoria</Text>
+          </View>
+          {auditLogs.length > 0 ? auditLogs.map((log: any) => (
+            <View key={log.id} style={{ paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#111827' }}>
+                {log.description || log.action}
+              </Text>
+              <Text style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>
+                {log.actorName || 'Sistema'} • {log.createdAt ? log.createdAt.toLocaleString('pt-PT') : ''}
+              </Text>
+            </View>
+          )) : (
+            <View style={{ alignItems: 'center', paddingVertical: 24 }}>
+              <Text style={{ color: '#9ca3af', fontStyle: 'italic' }}>
+                Nenhum registo de auditoria ainda.
+              </Text>
+            </View>
+          )}
         </Card.Content>
       </Card>
 
@@ -706,6 +905,45 @@ export default function AdminPanelScreen() {
                       {promoter.commissionRate}% comissão
                     </Text>
                   </View>
+                  {(() => {
+                    const stats = promoterExamStats[promoter.userId];
+                    if (!stats || stats.total === 0) {
+                      return (
+                        <View style={[styles.subjectBadge, { backgroundColor: '#f3f4f6' }]}>
+                          <Text style={{ fontSize: 10, fontWeight: '600', color: '#9ca3af' }}>
+                            0 exames
+                          </Text>
+                        </View>
+                      );
+                    }
+                    const approvedPct = Math.round((stats.approved / stats.total) * 100);
+                    const rejectedPct = Math.round((stats.rejected / stats.total) * 100);
+                    const commissionValue = Math.round(stats.approved * EXAM_BASE_PRICE * (promoter.commissionRate / 100));
+                    return (
+                      <>
+                        <View style={[styles.subjectBadge, { backgroundColor: '#ecfdf5' }]}>
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: '#10b981' }}>
+                            {approvedPct}% aprovados
+                          </Text>
+                        </View>
+                        <View style={[styles.subjectBadge, { backgroundColor: '#fef2f2' }]}>
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: '#ef4444' }}>
+                            {rejectedPct}% reprovados
+                          </Text>
+                        </View>
+                        <View style={[styles.subjectBadge, { backgroundColor: '#fef3c7' }]}>
+                          <Text style={{ fontSize: 10, fontWeight: '600', color: '#92400e' }}>
+                            {stats.total} exames
+                          </Text>
+                        </View>
+                        <View style={[styles.subjectBadge, { backgroundColor: '#eef2ff' }]}>
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: '#4f46e5' }}>
+                            💰 {commissionValue} MZN
+                          </Text>
+                        </View>
+                      </>
+                    );
+                  })()}
                 </View>
               </View>
               <TouchableOpacity
@@ -781,6 +1019,16 @@ export default function AdminPanelScreen() {
                     <Text style={{ fontSize: 20, marginRight: 8 }}>⛔</Text>
                     <Text style={styles.modalButtonText}>Bloquear Utilizador</Text>
                   </TouchableOpacity>
+
+                  {selectedUser.role !== UserRole.PROMOTER && selectedUser.role !== UserRole.ADMIN && (
+                    <TouchableOpacity
+                      style={styles.modalButton}
+                      onPress={() => handleUserAction(selectedUser, 'makePromoter')}
+                    >
+                      <Text style={{ fontSize: 20, marginRight: 8 }}>📣</Text>
+                      <Text style={styles.modalButtonText}>Tornar Promotor</Text>
+                    </TouchableOpacity>
+                  )}
 
                   <TouchableOpacity
                     style={styles.modalButton}
@@ -916,6 +1164,42 @@ export default function AdminPanelScreen() {
                   <TouchableOpacity style={styles.modalButton} onPress={() => handlePromoterAction(selectedPromoter, 'viewLeads')}><Text style={{ fontSize: 20, marginRight: 8 }}>👥</Text><Text style={styles.modalButtonText}>Ver Leads</Text></TouchableOpacity>
                   {selectedPromoter.status === 'active' ? (<TouchableOpacity style={styles.modalButton} onPress={() => handlePromoterAction(selectedPromoter, 'suspend')}><Text style={{ fontSize: 20, marginRight: 8 }}>⛔</Text><Text style={styles.modalButtonText}>Suspender Promotor</Text></TouchableOpacity>) : (<TouchableOpacity style={styles.modalButton} onPress={() => handlePromoterAction(selectedPromoter, 'activate')}><Text style={{ fontSize: 20, marginRight: 8 }}>✅</Text><Text style={styles.modalButtonText}>Ativar Promotor</Text></TouchableOpacity>)}
 
+                  {/* Cadastros de Exames e Comissões */}
+                  <View style={{ marginTop: 16, marginBottom: 8 }}>
+                    <Text style={{ fontWeight: '800', fontSize: 15, color: '#111827', marginBottom: 4 }}>
+                      📚 Cadastros de Exames
+                    </Text>
+                    <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>
+                      Comissão: {selectedPromoter.commissionRate}% × {EXAM_BASE_PRICE} MZN por exame aprovado
+                    </Text>
+                    {(() => {
+                      const exams = promoterExams[selectedPromoter.userId] || [];
+                      if (exams.length === 0) {
+                        return <Text style={{ fontSize: 12, color: '#9ca3af', fontStyle: 'italic' }}>Nenhum exame cadastrado.</Text>;
+                      }
+                      return exams.map((exam: any) => {
+                        const statusColor = exam.status === 'approved' ? '#10b981' : exam.status === 'rejected' ? '#ef4444' : '#f59e0b';
+                        const statusBg = exam.status === 'approved' ? '#ecfdf5' : exam.status === 'rejected' ? '#fef2f2' : '#fef3c7';
+                        const statusLabel = exam.status === 'approved' ? 'Aprovado' : exam.status === 'rejected' ? 'Rejeitado' : 'Pendente';
+                        const commission = exam.status === 'approved' ? Math.round(EXAM_BASE_PRICE * (selectedPromoter.commissionRate / 100)) : 0;
+                        return (
+                          <View key={exam.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' }}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ fontSize: 13, fontWeight: '600', color: '#111827' }}>{exam.subject}</Text>
+                              <Text style={{ fontSize: 11, color: '#9ca3af' }}>{exam.institution} • {exam.year}</Text>
+                            </View>
+                            <View style={[styles.subjectBadge, { backgroundColor: statusBg }]}>
+                              <Text style={{ fontSize: 10, fontWeight: '700', color: statusColor }}>{statusLabel}</Text>
+                            </View>
+                            <Text style={{ fontSize: 12, fontWeight: '700', color: commission > 0 ? '#4f46e5' : '#9ca3af', marginLeft: 8, minWidth: 60, textAlign: 'right' }}>
+                              {commission > 0 ? `${commission} MZN` : '—'}
+                            </Text>
+                          </View>
+                        );
+                      });
+                    })()}
+                  </View>
+
                   <Button
                     mode="outlined"
                     onPress={() => setShowPromoterModal(false)}
@@ -1001,6 +1285,43 @@ export default function AdminPanelScreen() {
               >
                 Cancelar
               </Button>
+            </Card.Content>
+          </Card>
+        </Modal>
+
+        {/* Modal de Confirmação (Alert.alert não funciona no web) */}
+        <Modal
+          visible={!!confirmAction}
+          onDismiss={() => setConfirmAction(null)}
+          contentContainerStyle={styles.modalContainer}
+        >
+          <Card>
+            <Card.Content>
+              <Text variant="titleLarge" style={{ fontWeight: '700', marginBottom: 12, color: '#111827' }}>
+                {confirmAction?.title}
+              </Text>
+              <Text variant="bodyMedium" style={{ color: '#6b7280', marginBottom: 20, lineHeight: 20 }}>
+                {confirmAction?.message}
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <Button
+                  mode="outlined"
+                  onPress={() => setConfirmAction(null)}
+                  style={{ flex: 1 }}
+                  disabled={confirmBusy}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  mode="contained"
+                  onPress={runConfirm}
+                  loading={confirmBusy}
+                  style={{ flex: 1 }}
+                  buttonColor={confirmAction?.destructive ? '#ef4444' : '#4f46e5'}
+                >
+                  {confirmAction?.confirmLabel || 'Confirmar'}
+                </Button>
+              </View>
             </Card.Content>
           </Card>
         </Modal>
@@ -1224,13 +1545,23 @@ export default function AdminPanelScreen() {
           </Card>
         </Modal>
       </Portal>
+
+      {/* Feedback de ações (sucesso/erro) */}
+      <Snackbar
+        visible={!!snackbar}
+        onDismiss={() => setSnackbar(null)}
+        duration={3500}
+        style={snackbar?.error ? { backgroundColor: '#ef4444' } : { backgroundColor: '#10b981' }}
+      >
+        {snackbar?.message || ''}
+      </Snackbar>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.lg, paddingBottom: 32 },
+  content: { padding: spacing.lg, paddingBottom: 120 },
   
   // Header estilo Yango
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xl },

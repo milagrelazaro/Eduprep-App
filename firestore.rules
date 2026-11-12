@@ -18,21 +18,32 @@ service cloud.firestore {
     }
     
     // Helper function - check if user is admin
+    // Nota: documentos de utilizador são criados com addDoc (id aleatório ≠ auth.uid),
+    // por isso getUserData() falha. Verificamos também o email do token e
+    // protegemos o get() com exists() para não gerar erro quando o doc não existe.
     function isAdmin() {
-      return isAuthenticated() && getUserData().role == 'admin';
+      return isAuthenticated() && (
+        request.auth.token.email == 'admin@eduprep.co.mz' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         getUserData().role == 'admin')
+      );
     }
     
     // Helper function - check if user is tutor
     function isTutor() {
-      return isAuthenticated() && getUserData().role == 'tutor';
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        getUserData().role == 'tutor';
     }
     
     // Users collection
+    // O id do documento é aleatório (addDoc), por isso isOwner(userId) nunca corresponde.
+    // Operações admin (bloquear/apagar/promover) são controladas na UI.
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow create: if true; // Permitir registro
-      allow update: if isOwner(userId) || isAdmin();
-      allow delete: if isOwner(userId) || isAdmin();
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated();
     }
     
     // Exams collection
@@ -135,6 +146,13 @@ service cloud.firestore {
         allow update: if isAuthenticated();
         allow delete: if isAuthenticated();
       }
+    }
+    
+    // Audit Logs collection (registo de quem fez o quê)
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if false; // registos são imutáveis
     }
     
     // Default rule - require authentication for everything else

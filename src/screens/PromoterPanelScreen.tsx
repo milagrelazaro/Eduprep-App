@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Alert, Share } from 'react-native';
-import { Text, Card, Button, TextInput, Modal, Portal } from 'react-native-paper';
+import { Text, Card, Button, TextInput, Modal, Portal, Chip } from 'react-native-paper';
+import { useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../store/authStore';
 import { referralService } from '../services/referralService';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { db } from '../config/firebase';
 import { Promoter, ReferralLead } from '../types';
 import { colors, borderRadius, spacing, typography, shadows } from '../theme/colors';
 
 export default function PromoterPanelScreen() {
+  const navigation = useNavigation();
   const { user, logout } = useAuthStore();
   const [promoter, setPromoter] = useState<Promoter | null>(null);
   const [leads, setLeads] = useState<ReferralLead[]>([]);
+  const [myExams, setMyExams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [mpesaNumber, setMpesaNumber] = useState('');
@@ -31,6 +36,37 @@ export default function PromoterPanelScreen() {
       if (promoterData) {
         const leadsData = await referralService.getPromoterLeads(promoterData.id);
         setLeads(leadsData);
+      }
+
+      // Carregar exames cadastrados pelo promotor
+      // 1) Por uploadedBy (ID do utilizador) — exames novos
+      // 2) Fallback por uploadedByName — exames antigos sem uploadedBy
+      if (user?.id) {
+        let examsData: any[] = [];
+        try {
+          const examsQuery = query(
+            collection(db, 'exams'),
+            where('uploadedBy', '==', user.id)
+          );
+          const examsSnapshot = await getDocs(examsQuery);
+          examsData = examsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        } catch (e) {
+          console.error('Erro ao carregar exames por uploadedBy:', e);
+        }
+
+        if (examsData.length === 0 && user.name) {
+          try {
+            const fallbackQuery = query(
+              collection(db, 'exams'),
+              where('uploadedByName', '==', user.name)
+            );
+            const fallbackSnapshot = await getDocs(fallbackQuery);
+            examsData = fallbackSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          } catch (e) {
+            console.error('Erro ao carregar exames por uploadedByName:', e);
+          }
+        }
+        setMyExams(examsData);
       }
     } catch (error) {
       console.error('Error loading promoter data:', error);
@@ -89,6 +125,16 @@ export default function PromoterPanelScreen() {
       case 'paid': return 'Pago';
       case 'fraud': return 'Fraude';
       default: return 'Pendente';
+    }
+  };
+
+  const getExamStatusInfo = (status: string) => {
+    switch (status) {
+      case 'approved': return { label: 'Aprovado', color: '#10b981', bg: '#ecfdf5' };
+      case 'rejected': return { label: 'Rejeitado', color: '#ef4444', bg: '#fef2f2' };
+      case 'pending_validation': return { label: 'Pendente', color: '#f97316', bg: '#fff7ed' };
+      case 'draft': return { label: 'Rascunho', color: '#8b5cf6', bg: '#f5f3ff' };
+      default: return { label: 'Pendente', color: '#f59e0b', bg: '#fef3c7' };
     }
   };
 
@@ -163,6 +209,82 @@ export default function PromoterPanelScreen() {
           >
             Partilhar Código
           </Button>
+        </Card.Content>
+      </Card>
+
+      {/* Cadastro de Exames */}
+      <Card style={[styles.sectionCard, { backgroundColor: colors.white, borderRadius: borderRadius.xl, ...shadows.small }]}>
+        <Card.Content>
+          <View style={styles.sectionHeader}>
+            <Text variant="titleMedium" style={{ fontWeight: '700' }}>📝 Cadastro de Exames</Text>
+          </View>
+          <Text style={{ fontSize: 13, color: colors.textSecondary, marginBottom: 16, lineHeight: 18 }}>
+            Cadastra exames de admissão. Após o envio, o exame fica <Text style={{ fontWeight: '700', color: '#f59e0b' }}>pendente</Text> até aprovação do administrador.
+          </Text>
+          <Button
+            mode="contained"
+            onPress={() => (navigation as any).navigate('CreateExamManual')}
+            style={{ backgroundColor: colors.primary, borderRadius: borderRadius.md }}
+            icon="plus"
+          >
+            Cadastrar Novo Exame
+          </Button>
+        </Card.Content>
+      </Card>
+
+      {/* Meus Exames */}
+      <Card style={styles.sectionCard}>
+        <Card.Content>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <Text variant="titleMedium" style={{ fontWeight: '700' }}>
+              📚 Meus Exames ({myExams.length})
+            </Text>
+            <TouchableOpacity onPress={loadPromoterData}>
+              <Text style={{ color: '#8b5cf6', fontWeight: '600', fontSize: 13 }}>↻ Recarregar</Text>
+            </TouchableOpacity>
+          </View>
+          {myExams.length === 0 ? (
+            <Text style={{ color: '#9ca3af', textAlign: 'center', paddingVertical: 16 }}>
+              Ainda não cadastraste nenhum exame
+            </Text>
+          ) : (
+            myExams.map((exam) => {
+              const info = getExamStatusInfo(exam.status);
+              const isDraft = exam.status === 'draft';
+              const isPending = exam.status === 'pending' || exam.status === 'pending_validation';
+              const canEdit = isDraft || isPending;
+              return (
+                <View key={exam.id} style={styles.leadItem}>
+                  <View style={styles.leadInfo}>
+                    <Text style={styles.leadName}>{exam.subject}</Text>
+                    <Text style={styles.leadEmail}>
+                      {exam.institution} • {exam.year}
+                      {isDraft ? `  •  ${exam.questionsCount || 0} questões gravadas` : ''}
+                    </Text>
+                  </View>
+                  <Chip
+                    compact
+                    textStyle={{ fontSize: 10, fontWeight: '700', color: info.color }}
+                    style={{ backgroundColor: info.bg }}
+                  >
+                    {info.label}
+                  </Chip>
+                  {canEdit && (
+                    <Button
+                      mode="outlined"
+                      compact
+                      icon="pencil"
+                      onPress={() => (navigation as any).navigate('CreateExamManual', { examId: exam.id })}
+                      style={{ marginLeft: 8, borderColor: '#8b5cf6' }}
+                      textColor="#8b5cf6"
+                    >
+                      {isDraft ? 'Continuar' : 'Editar'}
+                    </Button>
+                  )}
+                </View>
+              );
+            })
+          )}
         </Card.Content>
       </Card>
 
@@ -330,7 +452,7 @@ export default function PromoterPanelScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.lg, paddingBottom: 32 },
+  content: { padding: spacing.lg, paddingBottom: 120 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyCard: { backgroundColor: colors.white, borderRadius: borderRadius.xl, elevation: 0, borderWidth: 1, borderColor: colors.borderLight },
   

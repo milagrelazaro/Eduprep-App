@@ -36,7 +36,7 @@ export type RootStackParamList = {
   EnhancedSimulator: undefined;
   AdminExams: undefined;
   ExamManagement: undefined;
-  CreateExamManual: undefined;
+  CreateExamManual: { examId?: string } | undefined;
   AcademicSetup: undefined;
   ExamHistory: undefined;
   ExamReview: { resultId: string };
@@ -176,8 +176,8 @@ function MainTabs() {
 export default function AppNavigator() {
   const { user } = useAuthStore();
   
-  // Verificar se o usuário precisa completar o onboarding
-  const needsOnboarding = user && (!user.intendedCourse || !user.competingDisciplines || user.competingDisciplines.length === 0);
+  // Verificar se o usuário precisa completar o onboarding (apenas estudantes)
+  const needsOnboarding = user && user.role === UserRole.STUDENT && (!user.intendedCourse || !user.competingDisciplines || user.competingDisciplines.length === 0);
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
